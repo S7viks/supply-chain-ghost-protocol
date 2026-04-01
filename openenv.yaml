@@ -165,6 +165,16 @@ tasks:
       redistribute shipments and manage warehouse inventory to maintain ≥0.85
       service level. Tests multi-step planning under capacity constraint.
 
+  - id: task_cascade_dual_chokepoint
+    name: "The Cascade"
+    difficulty: hard
+    episode_length: 20
+    success_threshold: 0.55
+    description: >
+      Dual-chokepoint scenario without random demand spikes. PORT_SINGAPORE blocks
+      for 6 days (days 3–9) followed by PORT_ROTTERDAM congestion for 6 days
+      (days 10–16). Tests mid-horizon planning, rerouting, and Bullwhip control.
+
   - id: task_hard_ghost_protocol
     name: "Ghost Protocol"
     difficulty: hard
@@ -173,7 +183,7 @@ tasks:
     description: >
       Cascading multi-port failures + random demand spikes. Agent must maintain
       ≥0.90 network service level with Bullwhip Index < 2.0. Any stock-out event
-      applies a -30% score penalty. Tests long-horizon crisis management.
+      applies a -20% score penalty. Tests long-horizon crisis management.
 
 # ─────────────────────────────────────────────
 # Infrastructure

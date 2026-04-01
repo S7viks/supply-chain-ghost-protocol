@@ -146,6 +146,9 @@ class SupplyChainEnv:
         self._episode_reroute_cost: float = 0.0
         self._episode_expedite_cost: float = 0.0
 
+        # Random demand spikes are one-day shocks; store originals for reset next day.
+        self._pending_spike_reset: Dict[str, float] = {}
+
     # ─── OpenEnv API ─────────────────────────────────────────────────────
 
     def reset(self) -> Observation:
@@ -182,6 +185,7 @@ class SupplyChainEnv:
         self._cumulative_service_checks = 0
         self._episode_reroute_cost = 0.0
         self._episode_expedite_cost = 0.0
+        self._pending_spike_reset = {}
 
         # Port statuses
         self._port_status = {pid: PortStatus.OPEN for pid in PORTS}
@@ -643,6 +647,12 @@ class SupplyChainEnv:
         per day when enabled, multiplying a random factory's burn rate
         by 1.2–1.8x for one day.
         """
+        if self._pending_spike_reset:
+            for fid, original_rate in self._pending_spike_reset.items():
+                if fid in self._factory_demands:
+                    self._factory_demands[fid].daily_burn_rate = original_rate
+            self._pending_spike_reset = {}
+
         for shock in self.shock_config.get("scheduled", []):
             if shock["day"] == self._day:
                 self._port_status[shock["port"]] = PortStatus(shock["status"])
@@ -653,7 +663,9 @@ class SupplyChainEnv:
 
         if self.shock_config.get("random_demand_spikes") and self._rng.random() < 0.15:
             fid = self._rng.choice(list(self._factory_demands.keys()))
-            self._factory_demands[fid].daily_burn_rate *= self._rng.uniform(1.2, 1.8)
+            original_rate = self._factory_demands[fid].daily_burn_rate
+            self._pending_spike_reset[fid] = original_rate
+            self._factory_demands[fid].daily_burn_rate = original_rate * self._rng.uniform(1.2, 1.8)
 
     # ─── Reward Computation ──────────────────────────────────────────────
 

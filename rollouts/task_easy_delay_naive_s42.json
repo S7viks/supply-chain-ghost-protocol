@@ -1,0 +1,724 @@
+{
+  "task_id": "task_easy_delay",
+  "task_name": "The Delay",
+  "difficulty": "easy",
+  "seed": 42,
+  "policy_name": "naive",
+  "episode_length": 7,
+  "final_score": 0.9,
+  "final_service_level": 1.0,
+  "steps": [
+    {
+      "day": 0,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": 0.0,
+      "reward_components": {},
+      "bullwhip_index": 1.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "congested"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 10000.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 7500.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 7200.0,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 4800.0,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 3600.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [
+        {
+          "ship_id": "V-001",
+          "origin": "PORT_SINGAPORE",
+          "destination": "WH_ASIA_HUB",
+          "cargo": 2000.0,
+          "eta": 1.0,
+          "status": "in_transit"
+        },
+        {
+          "ship_id": "V-002",
+          "origin": "PORT_ROTTERDAM",
+          "destination": "WH_EUROPE_HUB",
+          "cargo": 1500.0,
+          "eta": 0.5,
+          "status": "in_transit"
+        },
+        {
+          "ship_id": "V-003",
+          "origin": "PORT_SHANGHAI",
+          "destination": "WH_ASIA_HUB",
+          "cargo": 2500.0,
+          "eta": 2.0,
+          "status": "in_transit"
+        }
+      ],
+      "active_shocks": [
+        "PORT_SINGAPORE is congested"
+      ],
+      "demand_fulfilled": 0.0,
+      "demand_total": 0.0
+    },
+    {
+      "day": 1,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": 41.1555,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -208.84,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": 0.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 1.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "congested"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 12000.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 6608.65,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 4406.92,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 3303.34,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [
+        {
+          "ship_id": "V-003",
+          "origin": "PORT_SHANGHAI",
+          "destination": "WH_ASIA_HUB",
+          "cargo": 2500.0,
+          "eta": 1.0,
+          "status": "in_transit"
+        }
+      ],
+      "active_shocks": [
+        "PORT_SINGAPORE is congested"
+      ],
+      "demand_fulfilled": 1281.1,
+      "demand_total": 1281.1
+    },
+    {
+      "day": 2,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": -114.884,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -214.88,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": -150.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 9.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "congested"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 14500.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 5966.53,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 4012.02,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 3048.26,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [],
+      "active_shocks": [
+        "PORT_SINGAPORE is congested"
+      ],
+      "demand_fulfilled": 1292.09,
+      "demand_total": 1292.09
+    },
+    {
+      "day": 3,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": -108.3703,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -208.37,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": -150.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 9.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "open"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 14500.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 5346.59,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 3622.71,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 2754.77,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [],
+      "active_shocks": [],
+      "demand_fulfilled": 1302.74,
+      "demand_total": 1302.74
+    },
+    {
+      "day": 4,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": -101.6146,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -201.61,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": -150.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 9.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "open"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 14500.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 4739.63,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 3213.42,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 2419.86,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [],
+      "active_shocks": [],
+      "demand_fulfilled": 1351.15,
+      "demand_total": 1351.15
+    },
+    {
+      "day": 5,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": -95.0062,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -195.01,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": -150.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 9.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "open"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 14500.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 4100.24,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 2809.0,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 2142.01,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [],
+      "active_shocks": [],
+      "demand_fulfilled": 1321.67,
+      "demand_total": 1321.67
+    },
+    {
+      "day": 6,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": -88.5647,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -188.56,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": -150.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 9.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "open"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 14500.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 3561.12,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 2399.15,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 1802.68,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [],
+      "active_shocks": [],
+      "demand_fulfilled": 1288.31,
+      "demand_total": 1288.31
+    },
+    {
+      "day": 7,
+      "action": {
+        "action_type": "noop"
+      },
+      "reward_total": -81.9937,
+      "reward_components": {
+        "service_level_bonus": 200.0,
+        "stockout_penalty": -0.0,
+        "holding_cost_penalty": -181.99,
+        "reroute_cost_penalty": 0.0,
+        "expedite_cost_penalty": 0.0,
+        "bullwhip_penalty": -150.0,
+        "stability_bonus": 50.0
+      },
+      "bullwhip_index": 9.0,
+      "service_level": 1.0,
+      "any_factory_stockout": false,
+      "inventory": {
+        "PORT_SINGAPORE": {
+          "current_stock": 1500.0,
+          "capacity": 5000.0,
+          "safety_stock": 500.0,
+          "status": "open"
+        },
+        "PORT_ROTTERDAM": {
+          "current_stock": 1200.0,
+          "capacity": 4000.0,
+          "safety_stock": 400.0,
+          "status": "open"
+        },
+        "PORT_SHANGHAI": {
+          "current_stock": 1800.0,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "open"
+        },
+        "PORT_BUSAN": {
+          "current_stock": 1050.0,
+          "capacity": 3500.0,
+          "safety_stock": 350.0,
+          "status": "open"
+        },
+        "PORT_HAMBURG": {
+          "current_stock": 900.0,
+          "capacity": 3000.0,
+          "safety_stock": 300.0,
+          "status": "open"
+        },
+        "WH_ASIA_HUB": {
+          "current_stock": 14500.0,
+          "capacity": 20000.0,
+          "safety_stock": 4000.0,
+          "status": "active"
+        },
+        "WH_EUROPE_HUB": {
+          "current_stock": 9000.0,
+          "capacity": 15000.0,
+          "safety_stock": 3000.0,
+          "status": "active"
+        },
+        "FAC_TAIPEI": {
+          "current_stock": 2958.62,
+          "capacity": 12000.0,
+          "safety_stock": 1200.0,
+          "status": "active"
+        },
+        "FAC_BERLIN": {
+          "current_stock": 2003.4,
+          "capacity": 8000.0,
+          "safety_stock": 800.0,
+          "status": "active"
+        },
+        "FAC_AUSTIN": {
+          "current_stock": 1486.73,
+          "capacity": 6000.0,
+          "safety_stock": 600.0,
+          "status": "active"
+        }
+      },
+      "ships": [],
+      "active_shocks": [],
+      "demand_fulfilled": 1314.2,
+      "demand_total": 1314.2
+    }
+  ]
+}

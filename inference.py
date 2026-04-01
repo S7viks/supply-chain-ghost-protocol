@@ -20,12 +20,13 @@ import argparse
 import json
 import os
 import textwrap
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 from openai import OpenAI
 
 from models import Action, ActionType, Observation
-from tasks import ALL_TASKS, run_task
+from tasks import ALL_TASKS, Task, run_task
 
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -149,27 +150,83 @@ def parse_action(response_text: str) -> Action:
 
 # ─── LLM Agent ───────────────────────────────────────────────────────────────
 
+def _task_brief(task: Task) -> str:
+    scheduled = task.shock_config.get("scheduled", [])
+    spikes = bool(task.shock_config.get("random_demand_spikes", False))
+    lines = [
+        f"TASK: {task.name} ({task.difficulty.upper()}) | Episode length: {task.episode_length} days",
+        "KNOWN UPCOMING DISRUPTIONS (public task conditions):",
+    ]
+    if scheduled:
+        for s in scheduled:
+            end = s.get("end_day")
+            if end is None:
+                lines.append(f"- Day {s['day']}: {s['port']} -> {s['status']}")
+            else:
+                lines.append(f"- Day {s['day']}-{end}: {s['port']} -> {s['status']}")
+    else:
+        lines.append("- None")
+    lines.append(f"Random demand spikes enabled: {spikes}")
+    return "\n".join(lines)
 
-def llm_agent(obs: Observation) -> Action:
-    """Query the LLM with the current observation and return a typed action."""
-    user_message = obs_to_prompt(obs)
 
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
-            seed=SEED,
-        )
-        action_text = response.choices[0].message.content or ""
-        return parse_action(action_text)
-    except Exception as exc:
-        print(f"[ERROR] LLM call failed: {exc}")
-        return Action(action_type=ActionType.NOOP)
+def _prev_outcome_brief(prev_step: Optional[Dict[str, Any]]) -> str:
+    if not prev_step:
+        return "PREVIOUS OUTCOME: None (episode start)"
+    parts: List[str] = [
+        f"PREVIOUS OUTCOME: day={prev_step.get('day')} action={prev_step.get('action_type')}",
+        f"reward={prev_step.get('reward_total')} service_level={prev_step.get('service_level')} bullwhip={prev_step.get('bullwhip_index')}",
+        f"stockout={prev_step.get('any_factory_stockout')}",
+    ]
+    return " | ".join(parts)
+
+
+@dataclass
+class _AgentMemory:
+    history: List[Tuple[str, str]] = field(default_factory=list)  # (user, assistant_json)
+
+    def append(self, user_msg: str, assistant_msg: str) -> None:
+        self.history.append((user_msg, assistant_msg))
+        self.history = self.history[-4:]  # keep last 4 turns
+
+    def to_messages(self) -> List[Dict[str, str]]:
+        messages: List[Dict[str, str]] = []
+        for u, a in self.history:
+            messages.append({"role": "user", "content": u})
+            messages.append({"role": "assistant", "content": a})
+        return messages
+
+
+def make_llm_agent(task: Task) -> Any:
+    """Build a stateful LLM agent closure for a given task."""
+    mem = _AgentMemory()
+    brief = _task_brief(task)
+
+    def llm_agent(obs: Observation, prev_step: Optional[Dict[str, Any]] = None, _task: Optional[Task] = None) -> Action:
+        """Query the LLM with multi-turn context; return a typed action."""
+        user_message = "\n\n".join([brief, _prev_outcome_brief(prev_step), "CURRENT OBSERVATION:", obs_to_prompt(obs)])
+
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    *mem.to_messages(),
+                    {"role": "user", "content": user_message},
+                ],
+                temperature=TEMPERATURE,
+                max_tokens=MAX_TOKENS,
+                seed=SEED,
+            )
+            action_text = (response.choices[0].message.content or "").strip()
+            action = parse_action(action_text)
+            mem.append(user_message, action.model_dump_json())
+            return action
+        except Exception as exc:
+            print(f"[ERROR] LLM call failed: {exc}")
+            return Action(action_type=ActionType.NOOP)
+
+    return llm_agent
 
 
 # ─── Task Runner ─────────────────────────────────────────────────────────────
@@ -195,9 +252,10 @@ def run_all_tasks(
         print(f"\n[TASK] {task.name} ({task.difficulty.upper()}) -- {task.episode_length} days")
         print(f"       {task.description[:120]}...")
 
+        agent = make_llm_agent(task)
         result, trajectory = run_task(
             task=task,
-            agent_fn=llm_agent,
+            agent_fn=agent,
             seed=SEED,
             verbose=verbose,
         )

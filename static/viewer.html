@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Protocol — Supply Chain Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg-deep: #050a19;
+    --bg-panel: rgba(8, 14, 32, 0.88);
+    --bg-panel-hover: rgba(12, 20, 44, 0.92);
+    --border-subtle: rgba(0, 240, 255, 0.12);
+    --border-glow: rgba(0, 240, 255, 0.3);
+    --accent-cyan: #00f0ff;
+    --accent-green: #00ff88;
+    --accent-amber: #ff9500;
+    --accent-red: #ff3366;
+    --accent-purple: #7b61ff;
+    --text-primary: #e0e8ff;
+    --text-secondary: #6a7a9a;
+    --text-dim: #3a4a68;
+    --font-display: 'Orbitron', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-mono); }
+canvas { display: block; }
+#renderer-container { position: fixed; inset: 0; z-index: 0; }
+
+.hud-panel {
+    position: fixed; z-index: 10;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+    padding: 16px 20px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.hud-panel:hover {
+    border-color: var(--border-glow);
+    box-shadow: 0 4px 40px rgba(0, 240, 255, 0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+#panel-info {
+    top: 20px; left: 20px;
+    min-width: 220px;
+}
+#panel-info .logo {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 12px rgba(0,240,255,0.4);
+    margin-bottom: 12px;
+}
+#panel-info .day-counter {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--text-primary);
+    text-shadow: 0 0 20px rgba(224,232,255,0.15);
+}
+#panel-info .day-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+#panel-info .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 11px;
+}
+#panel-info .meta-label { color: var(--text-secondary); }
+#panel-info .meta-value { color: var(--text-primary); font-weight: 500; }
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: var(--font-display);
+}
+.badge-easy { background: rgba(0,255,136,0.15); color: var(--accent-green); border: 1px solid rgba(0,255,136,0.3); }
+.badge-medium { background: rgba(255,149,0,0.15); color: var(--accent-amber); border: 1px solid rgba(255,149,0,0.3); }
+.badge-hard { background: rgba(255,51,102,0.15); color: var(--accent-red); border: 1px solid rgba(255,51,102,0.3); }
+
+#panel-metrics {
+    top: 20px; right: 20px;
+    min-width: 260px;
+}
+.metric-block {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.metric-block:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+.metric-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-family: var(--font-display);
+}
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    line-height: 1;
+}
+.metric-value.cyan { color: var(--accent-cyan); text-shadow: 0 0 14px rgba(0,240,255,0.35); }
+.metric-value.amber { color: var(--accent-amber); text-shadow: 0 0 14px rgba(255,149,0,0.35); }
+.metric-value.green { color: var(--accent-green); text-shadow: 0 0 14px rgba(0,255,136,0.35); }
+.sparkline-container {
+    width: 100%;
+    height: 28px;
+    margin-top: 4px;
+}
+.sparkline-container svg { width: 100%; height: 100%; }
+
+#panel-timeline {
+    bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: min(700px, calc(100vw - 40px));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+}
+.timeline-btn {
+    background: none;
+    border: 1px solid var(--border-subtle);
+    color: var(--accent-cyan);
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.timeline-btn:hover { background: rgba(0,240,255,0.1); border-color: var(--border-glow); }
+.timeline-btn.active { background: rgba(0,240,255,0.15); border-color: var(--accent-cyan); }
+.timeline-slider-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent-cyan) var(--progress, 0%), var(--text-dim) var(--progress, 0%));
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 12px var(--accent-cyan), 0 0 4px rgba(0,240,255,0.6);
+    cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 12px var(--accent-cyan);
+    border: none;
+    cursor: pointer;
+}
+.timeline-day-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-align: center;
+    letter-spacing: 1px;
+}
+.speed-group {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.speed-btn {
+    background: none;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.speed-btn:hover { color: var(--text-primary); border-color: var(--border-glow); }
+.speed-btn.active { color: var(--accent-cyan); border-color: var(--accent-cyan); background: rgba(0,240,255,0.1); }
+
+#tooltip {
+    position: fixed;
+    z-index: 100;
+    display: none;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 12px 16px;
+    min-width: 180px;
+    pointer-events: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 20px rgba(0,240,255,0.08);
+}
+#tooltip .tt-name {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent-cyan);
+    margin-bottom: 8px;
+}
+#tooltip .tt-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 2px 0;
+}
+#tooltip .tt-label { color: var(--text-secondary); }
+#tooltip .tt-val { color: var(--text-primary); font-weight: 500; }
+.tt-bar-wrap {
+    margin-top: 8px;
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.tt-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+
+#action-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    z-index: 50;
+    background: rgba(255, 149, 0, 0.12);
+    border: 1px solid rgba(255, 149, 0, 0.4);
+    border-radius: 10px;
+    padding: 14px 28px;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-amber);
+    text-shadow: 0 0 12px rgba(255,149,0,0.4);
+    backdrop-filter: blur(12px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+}
+#action-toast.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#upload-zone {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 10, 25, 0.92);
+    backdrop-filter: blur(8px);
+    transition: opacity 0.4s;
+}
+#upload-zone.hidden { opacity: 0; pointer-events: none; }
+.upload-box {
+    width: 420px;
+    max-width: 90vw;
+    padding: 40px;
+    border: 2px dashed var(--border-glow);
+    border-radius: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s, background 0.3s;
+}
+.upload-box:hover, .upload-box.dragover {
+    border-color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.04);
+}
+.upload-box .upload-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.6;
+}
+.upload-box .upload-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-cyan);
+    margin-bottom: 8px;
+}
+.upload-box .upload-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+.upload-or {
+    margin: 20px 0;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+.demo-btn {
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-shadow: 0 0 8px rgba(0,240,255,0.3);
+}
+.demo-btn:hover {
+    background: rgba(0, 240, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0,240,255,0.15);
+}
+#load-btn {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all 0.2s;
+    display: none;
+}
+#load-btn:hover { color: var(--accent-cyan); border-color: var(--border-glow); }
+
+#shock-indicator {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    display: none;
+    background: rgba(255, 51, 102, 0.1);
+    border: 1px solid rgba(255, 51, 102, 0.35);
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-red);
+    text-shadow: 0 0 8px rgba(255,51,102,0.3);
+    backdrop-filter: blur(12px);
+}
+
+@keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes glow-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<div id="renderer-container"></div>
+
+<div id="panel-info" class="hud-panel">
+    <div class="logo">Ghost Protocol</div>
+    <div class="day-counter" id="hud-day">00</div>
+    <div class="day-label">Simulation Day</div>
+    <div class="meta-row">
+        <span class="meta-label">Task</span>
+        <span class="meta-value" id="hud-task">—</span>
+    </div>
+    <div class="meta-row">
+        <span class="meta-label">Difficulty</span>
+        <span id="hud-difficulty"><span class="badge badge-hard">HARD</span></span>
+    </div>
+    <div class="meta-row">
+        <span class="meta-label">Policy</span>
+        <span class="meta-value" id="hud-policy">—</span>
+    </div>
+    <div class="meta-row">
+        <span class="meta-label">Ships Active</span>
+        <span class="meta-value" id="hud-ships">0</span>
+    </div>
+</div>
+
+<div id="panel-metrics" class="hud-panel">
+    <div class="metric-block">
+        <div class="metric-header">
+            <span class="metric-label">Service Level</span>
+        </div>
+        <div class="metric-value cyan" id="hud-service">—</div>
+        <div class="sparkline-container"><svg id="spark-service" viewBox="0 0 220 28" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="metric-block">
+        <div class="metric-header">
+            <span class="metric-label">Bullwhip Index</span>
+        </div>
+        <div class="metric-value amber" id="hud-bullwhip">—</div>
+        <div class="sparkline-container"><svg id="spark-bullwhip" viewBox="0 0 220 28" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="metric-block">
+        <div class="metric-header">
+            <span class="metric-label">Cumulative Reward</span>
+        </div>
+        <div class="metric-value green" id="hud-reward">—</div>
+        <div class="sparkline-container"><svg id="spark-reward" viewBox="0 0 220 28" preserveAspectRatio="none"></svg></div>
+    </div>
+</div>
+
+<div id="panel-timeline" class="hud-panel">
+    <button class="timeline-btn" id="btn-play" title="Play / Pause">&#9654;</button>
+    <div class="timeline-slider-wrap">
+        <input type="range" id="timeline-slider" min="0" max="0" value="0" step="1">
+        <div class="timeline-day-label" id="timeline-label">Day 0 / 0</div>
+    </div>
+    <div class="speed-group">
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+    </div>
+</div>
+
+<div id="tooltip">
+    <div class="tt-name" id="tt-name"></div>
+    <div class="tt-row"><span class="tt-label">Stock</span><span class="tt-val" id="tt-stock"></span></div>
+    <div class="tt-row"><span class="tt-label">Capacity</span><span class="tt-val" id="tt-cap"></span></div>
+    <div class="tt-row"><span class="tt-label">Utilization</span><span class="tt-val" id="tt-util"></span></div>
+    <div class="tt-row"><span class="tt-label">Status</span><span class="tt-val" id="tt-status"></span></div>
+    <div class="tt-bar-wrap"><div class="tt-bar-fill" id="tt-bar"></div></div>
+</div>
+
+<div id="action-toast"></div>
+
+<div id="shock-indicator"></div>
+
+<button id="load-btn">LOAD ROLLOUT</button>
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<div id="upload-zone">
+    <div class="upload-box" id="drop-box">
+        <div class="upload-icon">&#9781;</div>
+        <div class="upload-title">Load Rollout JSON</div>
+        <div class="upload-sub">Drag &amp; drop a rollout file here<br>or click to browse</div>
+    </div>
+    <div class="upload-or">— or —</div>
+    <button class="demo-btn" id="btn-demo">Launch Demo Scenario</button>
+</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+    }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ───────── constants ───────── */
+const GLOBE_RADIUS = 100;
+const NODE_ELEVATION = 2.5;
+
+const NODES = {
+    PORT_SINGAPORE:  { lat:  1.29, lng: 103.85, type: 'port',      label: 'Singapore' },
+    PORT_ROTTERDAM:  { lat: 51.90, lng:   4.48, type: 'port',      label: 'Rotterdam' },
+    PORT_SHANGHAI:   { lat: 31.20, lng: 121.50, type: 'port',      label: 'Shanghai' },
+    PORT_BUSAN:      { lat: 35.10, lng: 129.00, type: 'port',      label: 'Busan' },
+    PORT_HAMBURG:    { lat: 53.55, lng:   9.99, type: 'port',      label: 'Hamburg' },
+    WH_ASIA_HUB:    { lat: 22.30, lng: 114.20, type: 'warehouse',  label: 'Asia Hub' },
+    WH_EUROPE_HUB:  { lat: 50.10, lng:   8.70, type: 'warehouse',  label: 'Europe Hub' },
+    FAC_TAIPEI:      { lat: 25.03, lng: 121.57, type: 'factory',    label: 'Taipei' },
+    FAC_BERLIN:      { lat: 52.52, lng:  13.41, type: 'factory',    label: 'Berlin' },
+    FAC_AUSTIN:      { lat: 30.27, lng: -97.74, type: 'factory',    label: 'Austin' },
+};
+
+const SUPPLY_LINKS = [
+    { from: 'PORT_SINGAPORE', to: 'WH_ASIA_HUB' },
+    { from: 'PORT_SHANGHAI',  to: 'WH_ASIA_HUB' },
+    { from: 'PORT_BUSAN',     to: 'WH_ASIA_HUB' },
+    { from: 'PORT_ROTTERDAM', to: 'WH_EUROPE_HUB' },
+    { from: 'PORT_HAMBURG',   to: 'WH_EUROPE_HUB' },
+    { from: 'WH_ASIA_HUB',   to: 'FAC_TAIPEI' },
+    { from: 'WH_ASIA_HUB',   to: 'FAC_AUSTIN' },
+    { from: 'WH_EUROPE_HUB', to: 'FAC_BERLIN' },
+    { from: 'WH_EUROPE_HUB', to: 'FAC_AUSTIN' },
+];
+
+const STATUS_COLORS = {
+    open:      0x00ff88,
+    active:    0x00ff88,
+    congested: 0xffaa00,
+    blocked:   0xff3366,
+    closed:    0xff3366,
+};
+
+const TYPE_COLORS = {
+    port:      0x00ff88,
+    warehouse: 0x40a0ff,
+    factory:   0xff9500,
+};
+
+/* ───────── sample rollout ───────── */
+const SAMPLE_ROLLOUT = {
+    task_id: "task_hard_ghost_protocol",
+    task_name: "Ghost Protocol",
+    difficulty: "hard",
+    seed: 42,
+    policy_name: "adaptive_heuristic",
+    episode_length: 30,
+    final_score: 0.78,
+    final_service_level: 0.88,
+    steps: [
+        {
+            day: 0,
+            action: { action_type: "noop" },
+            reward_total: 245.5,
+            reward_components: { service_level_bonus: 200, stockout_penalty: 0, holding_cost_penalty: -4.5, reroute_cost_penalty: 0, expedite_cost_penalty: 0, bullwhip_penalty: 0, stability_bonus: 50 },
+            bullwhip_index: 1.0, service_level: 1.0, any_factory_stockout: false, demand_fulfilled: 1300, demand_total: 1300,
+            inventory: {
+                PORT_SINGAPORE: { current_stock: 1500, capacity: 5000, status: "open" },
+                PORT_ROTTERDAM: { current_stock: 1200, capacity: 4000, status: "open" },
+                PORT_SHANGHAI:  { current_stock: 1800, capacity: 6000, status: "open" },
+                PORT_BUSAN:     { current_stock: 1050, capacity: 3500, status: "open" },
+                PORT_HAMBURG:   { current_stock: 900,  capacity: 3000, status: "open" },
+                WH_ASIA_HUB:   { current_stock: 10000, capacity: 20000, status: "active" },
+                WH_EUROPE_HUB: { current_stock: 7500,  capacity: 15000, status: "active" },
+                FAC_TAIPEI:     { current_stock: 7200,  capacity: 12000, status: "active" },
+                FAC_BERLIN:     { current_stock: 4800,  capacity: 8000, status: "active" },
+                FAC_AUSTIN:     { current_stock: 3600,  capacity: 6000, status: "active" },
+            },
+            ships: [
+                { ship_id: "V-001", origin: "PORT_SINGAPORE", destination: "WH_ASIA_HUB", cargo: 2000, eta: 1.0, status: "in_transit" },
+                { ship_id: "V-002", origin: "PORT_ROTTERDAM", destination: "WH_EUROPE_HUB", cargo: 1500, eta: 0.5, status: "in_transit" },
+                { ship_id: "V-003", origin: "PORT_SHANGHAI", destination: "WH_ASIA_HUB", cargo: 2500, eta: 2.0, status: "in_transit" },
+            ],
+            active_shocks: [],
+        },
+        {
+            day: 1,
+            action: { action_type: "noop" },
+            reward_total: 180.2,
+            reward_components: { service_level_bonus: 160, stockout_penalty: 0, holding_cost_penalty: -4.8, reroute_cost_penalty: 0, expedite_cost_penalty: 0, bullwhip_penalty: -15, stability_bonus: 40 },
+            bullwhip_index: 1.35, service_level: 0.95, any_factory_stockout: false, demand_fulfilled: 1235, demand_total: 1300,
+            inventory: {
+                PORT_SINGAPORE: { current_stock: 1350, capacity: 5000, status: "open" },
+                PORT_ROTTERDAM: { current_stock: 1100, capacity: 4000, status: "open" },
+                PORT_SHANGHAI:  { current_stock: 2200, capacity: 6000, status: "congested" },
+                PORT_BUSAN:     { current_stock: 950,  capacity: 3500, status: "open" },
+                PORT_HAMBURG:   { current_stock: 850,  capacity: 3000, status: "open" },
+                WH_ASIA_HUB:   { current_stock: 9200,  capacity: 20000, status: "active" },
+                WH_EUROPE_HUB: { current_stock: 7800,  capacity: 15000, status: "active" },
+                FAC_TAIPEI:     { current_stock: 6400,  capacity: 12000, status: "active" },
+                FAC_BERLIN:     { current_stock: 4200,  capacity: 8000, status: "active" },
+                FAC_AUSTIN:     { current_stock: 3100,  capacity: 6000, status: "active" },
+            },
+            ships: [
+                { ship_id: "V-001", origin: "PORT_SINGAPORE", destination: "WH_ASIA_HUB", cargo: 2000, eta: 0.0, status: "arrived" },
+                { ship_id: "V-003", origin: "PORT_SHANGHAI", destination: "WH_ASIA_HUB", cargo: 2500, eta: 1.0, status: "delayed" },
+                { ship_id: "V-004", origin: "PORT_BUSAN", destination: "WH_ASIA_HUB", cargo: 1800, eta: 1.5, status: "in_transit" },
+            ],
+            active_shocks: [{ shock_type: "typhoon_pacific", affected: ["PORT_SHANGHAI"], severity: 0.7 }],
+        },
+        {
+            day: 2,
+            action: { action_type: "reroute", from_port: "PORT_SHANGHAI", to_port: "PORT_SINGAPORE" },
+            reward_total: 155.8,
+            reward_components: { service_level_bonus: 140, stockout_penalty: -20, holding_cost_penalty: -5.2, reroute_cost_penalty: -10, expedite_cost_penalty: 0, bullwhip_penalty: -20, stability_bonus: 71 },
+            bullwhip_index: 1.52, service_level: 0.88, any_factory_stockout: false, demand_fulfilled: 1144, demand_total: 1300,
+            inventory: {
+                PORT_SINGAPORE: { current_stock: 1800, capacity: 5000, status: "open" },
+                PORT_ROTTERDAM: { current_stock: 1000, capacity: 4000, status: "open" },
+                PORT_SHANGHAI:  { current_stock: 2400, capacity: 6000, status: "congested" },
+                PORT_BUSAN:     { current_stock: 800,  capacity: 3500, status: "open" },
+                PORT_HAMBURG:   { current_stock: 750,  capacity: 3000, status: "open" },
+                WH_ASIA_HUB:   { current_stock: 8100,  capacity: 20000, status: "active" },
+                WH_EUROPE_HUB: { current_stock: 7200,  capacity: 15000, status: "active" },
+                FAC_TAIPEI:     { current_stock: 5500,  capacity: 12000, status: "active" },
+                FAC_BERLIN:     { current_stock: 3500,  capacity: 8000, status: "active" },
+                FAC_AUSTIN:     { current_stock: 2600,  capacity: 6000, status: "active" },
+            },
+            ships: [
+                { ship_id: "V-004", origin: "PORT_BUSAN", destination: "WH_ASIA_HUB", cargo: 1800, eta: 0.5, status: "in_transit" },
+                { ship_id: "V-005", origin: "PORT_SINGAPORE", destination: "WH_ASIA_HUB", cargo: 3000, eta: 1.5, status: "in_transit" },
+                { ship_id: "V-006", origin: "PORT_HAMBURG", destination: "WH_EUROPE_HUB", cargo: 1200, eta: 2.0, status: "in_transit" },
+            ],
+            active_shocks: [{ shock_type: "typhoon_pacific", affected: ["PORT_SHANGHAI"], severity: 0.5 }],
+        },
+    ],
+};
+
+/* ───────── state ───────── */
+const state = {
+    rollout: null,
+    stepIndex: 0,
+    playing: false,
+    speed: 1,
+    playTimer: 0,
+    cumulativeReward: 0,
+};
+
+/* ───────── utilities ───────── */
+function latLngToVec3(lat, lng, radius) {
+    const phi   = (90 - lat) * Math.PI / 180;
+    const theta = (lng + 180) * Math.PI / 180;
+    return new THREE.Vector3(
+        -radius * Math.sin(phi) * Math.cos(theta),
+         radius * Math.cos(phi),
+         radius * Math.sin(phi) * Math.sin(theta),
+    );
+}
+
+function lerpColor(a, b, t) {
+    const ca = new THREE.Color(a), cb = new THREE.Color(b);
+    return ca.lerp(cb, t);
+}
+
+function fillColor(ratio) {
+    if (ratio > 0.5) return lerpColor(0xffaa00, 0x00ff88, (ratio - 0.5) * 2);
+    return lerpColor(0xff3366, 0xffaa00, ratio * 2);
+}
+
+function createArcPoints(start, end, segments = 64) {
+    const cb = new THREE.QuadraticBezierCurve3(
+        start,
+        start.clone().add(end).multiplyScalar(0.5).normalize().multiplyScalar(
+            GLOBE_RADIUS + start.distanceTo(end) * 0.35
+        ),
+        end,
+    );
+    return cb.getPoints(segments);
+}
+
+/* ───────── Three.js setup ───────── */
+const container = document.getElementById('renderer-container');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
+camera.position.set(0, 80, 280);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 140;
+controls.maxDistance = 600;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.15;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.7, 0.4, 0.82,
+);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+/* ───────── lights ───────── */
+scene.add(new THREE.AmbientLight(0x223355, 1.8));
+const dirLight = new THREE.DirectionalLight(0xccddff, 1.5);
+dirLight.position.set(100, 200, 150);
+scene.add(dirLight);
+const rimLight = new THREE.DirectionalLight(0x2244aa, 0.8);
+rimLight.position.set(-150, -50, -100);
+scene.add(rimLight);
+
+/* ───────── starfield ───────── */
+{
+    const geo = new THREE.BufferGeometry();
+    const count = 4000;
+    const positions = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+        const r = 800 + Math.random() * 1500;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = r * Math.cos(phi);
+        sizes[i] = 0.5 + Math.random() * 1.5;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    const mat = new THREE.PointsMaterial({ color: 0x889abb, size: 1.2, sizeAttenuation: true, transparent: true, opacity: 0.7 });
+    scene.add(new THREE.Points(geo, mat));
+}
+
+/* ───────── globe ───────── */
+const globeGroup = new THREE.Group();
+scene.add(globeGroup);
+
+{
+    const wireGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 32);
+    const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x0a2a3f,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.22,
+    });
+    globeGroup.add(new THREE.Mesh(wireGeo, wireMat));
+
+    const solidGeo = new THREE.SphereGeometry(GLOBE_RADIUS - 0.5, 64, 32);
+    const solidMat = new THREE.MeshStandardMaterial({
+        color: 0x040c1a,
+        roughness: 0.9,
+        metalness: 0.1,
+    });
+    globeGroup.add(new THREE.Mesh(solidGeo, solidMat));
+
+    const atmosVert = `
+        varying vec3 vNormal;
+        varying vec3 vViewPos;
+        void main(){
+            vNormal = normalize(normalMatrix * normal);
+            vViewPos = (modelViewMatrix * vec4(position,1.0)).xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+        }`;
+    const atmosFrag = `
+        varying vec3 vNormal;
+        varying vec3 vViewPos;
+        void main(){
+            float intensity = pow(1.05 - dot(vNormal, normalize(-vViewPos)), 4.0);
+            gl_FragColor = vec4(0.15, 0.55, 0.9, 1.0) * intensity * 0.55;
+        }`;
+    const atmosMat = new THREE.ShaderMaterial({
+        vertexShader: atmosVert,
+        fragmentShader: atmosFrag,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+    });
+    globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(GLOBE_RADIUS * 1.12, 64, 32), atmosMat));
+}
+
+/* latitude / longitude grid */
+{
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x0e2a40, transparent: true, opacity: 0.18 });
+    for (let lat = -60; lat <= 60; lat += 30) {
+        const pts = [];
+        for (let lng = 0; lng <= 360; lng += 2) pts.push(latLngToVec3(lat, lng - 180, GLOBE_RADIUS + 0.3));
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        globeGroup.add(new THREE.Line(geo, gridMat));
+    }
+    for (let lng = -180; lng < 180; lng += 30) {
+        const pts = [];
+        for (let lat = -90; lat <= 90; lat += 2) pts.push(latLngToVec3(lat, lng, GLOBE_RADIUS + 0.3));
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        globeGroup.add(new THREE.Line(geo, gridMat));
+    }
+}
+
+/* ───────── node objects ───────── */
+const nodeObjects = {};
+const nodeHitTargets = [];
+const inventoryBars = {};
+
+function createNodeMesh(id, node) {
+    const group = new THREE.Group();
+    const pos = latLngToVec3(node.lat, node.lng, GLOBE_RADIUS + NODE_ELEVATION);
+    group.position.copy(pos);
+
+    const up = pos.clone().normalize();
+    group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+
+    const baseColor = TYPE_COLORS[node.type];
+    let geo;
+    if (node.type === 'port')      geo = new THREE.CylinderGeometry(2.5, 2.5, 1.8, 6);
+    else if (node.type === 'warehouse') geo = new THREE.BoxGeometry(3.5, 2.0, 3.5);
+    else                                geo = new THREE.ConeGeometry(2.5, 3.5, 4);
+
+    const mat = new THREE.MeshStandardMaterial({
+        color: baseColor,
+        emissive: baseColor,
+        emissiveIntensity: 0.45,
+        metalness: 0.7,
+        roughness: 0.25,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = 1;
+    group.add(mesh);
+
+    mesh.userData = { nodeId: id, ...node };
+    nodeHitTargets.push(mesh);
+
+    const barGeo = new THREE.CylinderGeometry(0.6, 0.6, 1, 8);
+    barGeo.translate(0, 0.5, 0);
+    const barMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff88,
+        emissive: 0x00ff88,
+        emissiveIntensity: 0.6,
+        metalness: 0.5,
+        roughness: 0.3,
+        transparent: true,
+        opacity: 0.85,
+    });
+    const bar = new THREE.Mesh(barGeo, barMat);
+    bar.position.y = 3;
+    bar.scale.y = 0;
+    group.add(bar);
+    inventoryBars[id] = bar;
+
+    const spriteMat = new THREE.SpriteMaterial({
+        color: baseColor,
+        transparent: true,
+        opacity: 0.12,
+        blending: THREE.AdditiveBlending,
+    });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(12, 12, 1);
+    sprite.position.y = 1;
+    group.add(sprite);
+
+    globeGroup.add(group);
+    nodeObjects[id] = { group, mesh, mat, bar, sprite };
+}
+
+for (const [id, node] of Object.entries(NODES)) createNodeMesh(id, node);
+
+/* ───────── supply chain links ───────── */
+const linkLineMaterials = [];
+{
+    for (const link of SUPPLY_LINKS) {
+        const fromPos = latLngToVec3(NODES[link.from].lat, NODES[link.from].lng, GLOBE_RADIUS + NODE_ELEVATION + 1);
+        const toPos   = latLngToVec3(NODES[link.to].lat,   NODES[link.to].lng,   GLOBE_RADIUS + NODE_ELEVATION + 1);
+        const pts = createArcPoints(fromPos, toPos, 72);
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineDashedMaterial({
+            color: 0x00f0ff,
+            dashSize: 2,
+            gapSize: 1.5,
+            transparent: true,
+            opacity: 0.12,
+        });
+        const line = new THREE.Line(geo, mat);
+        line.computeLineDistances();
+        globeGroup.add(line);
+        linkLineMaterials.push(mat);
+    }
+}
+
+/* ───────── ships ───────── */
+const shipGroup = new THREE.Group();
+globeGroup.add(shipGroup);
+
+function clearShips() {
+    while (shipGroup.children.length) {
+        const c = shipGroup.children[0];
+        c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+        shipGroup.remove(c);
+    }
+}
+
+function buildShips(step) {
+    clearShips();
+    if (!step.ships) return;
+    for (const ship of step.ships) {
+        if (ship.status === 'arrived') continue;
+        const fromNode = NODES[ship.origin];
+        const toNode   = NODES[ship.destination];
+        if (!fromNode || !toNode) continue;
+
+        const fromPos = latLngToVec3(fromNode.lat, fromNode.lng, GLOBE_RADIUS + NODE_ELEVATION + 2);
+        const toPos   = latLngToVec3(toNode.lat,   toNode.lng,   GLOBE_RADIUS + NODE_ELEVATION + 2);
+        const progress = Math.max(0, Math.min(1, 1 - (ship.eta / 4)));
+        const pts = createArcPoints(fromPos, toPos, 64);
+        const idx = Math.floor(progress * (pts.length - 1));
+
+        const shipGeo = new THREE.SphereGeometry(1.2, 12, 12);
+        const shipColor = ship.status === 'delayed' ? 0xffaa00 : 0x00f0ff;
+        const shipMat = new THREE.MeshStandardMaterial({
+            color: shipColor,
+            emissive: shipColor,
+            emissiveIntensity: 0.9,
+            metalness: 0.5,
+            roughness: 0.2,
+        });
+        const shipMesh = new THREE.Mesh(shipGeo, shipMat);
+        shipMesh.position.copy(pts[idx]);
+        shipGroup.add(shipMesh);
+
+        const trailGeo = new THREE.BufferGeometry().setFromPoints(pts.slice(0, idx + 1));
+        const trailMat = new THREE.LineBasicMaterial({ color: shipColor, transparent: true, opacity: 0.25 });
+        shipGroup.add(new THREE.Line(trailGeo, trailMat));
+
+        const haloMat = new THREE.SpriteMaterial({
+            color: shipColor,
+            transparent: true,
+            opacity: 0.25,
+            blending: THREE.AdditiveBlending,
+        });
+        const halo = new THREE.Sprite(haloMat);
+        halo.scale.set(6, 6, 1);
+        halo.position.copy(pts[idx]);
+        shipGroup.add(halo);
+    }
+}
+
+/* ───────── disruption rings ───────── */
+const disruptionRings = [];
+
+function clearDisruptions() {
+    for (const r of disruptionRings) {
+        r.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+        globeGroup.remove(r);
+    }
+    disruptionRings.length = 0;
+}
+
+function buildDisruptions(step) {
+    clearDisruptions();
+    if (!step.active_shocks) return;
+    for (const shock of step.active_shocks) {
+        for (const nodeId of (shock.affected || [])) {
+            const node = NODES[nodeId];
+            if (!node) continue;
+            const pos = latLngToVec3(node.lat, node.lng, GLOBE_RADIUS + NODE_ELEVATION + 0.5);
+            const up  = pos.clone().normalize();
+
+            for (let i = 0; i < 2; i++) {
+                const ringGeo = new THREE.TorusGeometry(4 + i * 3, 0.25, 8, 48);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: 0xff3366,
+                    transparent: true,
+                    opacity: 0.35 - i * 0.15,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.position.copy(pos);
+                ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+                ring.userData.phase = i * Math.PI;
+                globeGroup.add(ring);
+                disruptionRings.push(ring);
+            }
+        }
+    }
+}
+
+/* ───────── HUD updates ───────── */
+const $  = id => document.getElementById(id);
+const slider = $('timeline-slider');
+
+function updateHUD(step, rollout) {
+    $('hud-day').textContent = String(step.day).padStart(2, '0');
+    $('hud-task').textContent = rollout.task_name || '—';
+    $('hud-policy').textContent = rollout.policy_name || '—';
+
+    const diff = (rollout.difficulty || 'medium').toLowerCase();
+    $('hud-difficulty').innerHTML = `<span class="badge badge-${diff}">${diff.toUpperCase()}</span>`;
+
+    const activeShips = (step.ships || []).filter(s => s.status !== 'arrived').length;
+    $('hud-ships').textContent = activeShips;
+
+    $('hud-service').textContent = (step.service_level * 100).toFixed(1) + '%';
+    $('hud-bullwhip').textContent = step.bullwhip_index.toFixed(2);
+    $('hud-reward').textContent = state.cumulativeReward.toFixed(0);
+
+    updateSparklines(rollout, state.stepIndex);
+
+    const shockEl = $('shock-indicator');
+    if (step.active_shocks && step.active_shocks.length) {
+        const names = step.active_shocks.map(s => s.shock_type.replace(/_/g, ' ').toUpperCase()).join(' / ');
+        shockEl.textContent = '\u26A0 ACTIVE: ' + names;
+        shockEl.style.display = 'block';
+    } else {
+        shockEl.style.display = 'none';
+    }
+
+    if (step.action && step.action.action_type !== 'noop') {
+        const toast = $('action-toast');
+        toast.textContent = step.action.action_type.toUpperCase().replace(/_/g, ' ');
+        toast.classList.add('visible');
+        setTimeout(() => toast.classList.remove('visible'), 1500);
+    }
+
+    const max = rollout.steps.length - 1;
+    slider.max = max;
+    slider.value = state.stepIndex;
+    slider.style.setProperty('--progress', max ? ((state.stepIndex / max) * 100) + '%' : '0%');
+    $('timeline-label').textContent = `Day ${step.day} / ${rollout.steps[max].day}`;
+}
+
+function updateSparklines(rollout, upTo) {
+    const steps = rollout.steps.slice(0, upTo + 1);
+    drawSparkline('spark-service',  steps.map(s => s.service_level),  '#00f0ff');
+    drawSparkline('spark-bullwhip', steps.map(s => s.bullwhip_index), '#ff9500');
+
+    let cumul = 0;
+    const rewards = steps.map(s => { cumul += s.reward_total; return cumul; });
+    drawSparkline('spark-reward', rewards, '#00ff88');
+}
+
+function drawSparkline(svgId, values, color) {
+    const svg = document.getElementById(svgId);
+    if (!svg || values.length < 2) { if (svg) svg.innerHTML = ''; return; }
+    const W = 220, H = 28, pad = 2;
+    const min = Math.min(...values), max = Math.max(...values);
+    const range = max - min || 1;
+    const pts = values.map((v, i) => {
+        const x = pad + (i / (values.length - 1)) * (W - pad * 2);
+        const y = pad + (1 - (v - min) / range) * (H - pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const gradId = svgId + '-grad';
+    svg.innerHTML = `
+        <defs>
+            <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="${color}" stop-opacity="0.0"/>
+            </linearGradient>
+        </defs>
+        <polygon points="${pts[0].split(',')[0]},${H} ${pts.join(' ')} ${pts[pts.length-1].split(',')[0]},${H}"
+                 fill="url(#${gradId})"/>
+        <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="2.5" fill="${color}" opacity="0.9"/>`;
+}
+
+/* ───────── update nodes from step data ───────── */
+function updateNodes(step) {
+    for (const [id, inv] of Object.entries(step.inventory || {})) {
+        const obj = nodeObjects[id];
+        if (!obj) continue;
+        const node = NODES[id];
+        const status = inv.status || 'open';
+        const statusColor = STATUS_COLORS[status] || STATUS_COLORS.open;
+        const baseColor = node.type === 'port' ? statusColor : TYPE_COLORS[node.type];
+
+        obj.mat.color.set(baseColor);
+        obj.mat.emissive.set(baseColor);
+        obj.mat.emissiveIntensity = status === 'congested' ? 0.8 : status === 'blocked' ? 1.0 : 0.45;
+
+        const ratio = inv.current_stock / inv.capacity;
+        const barH = Math.max(0.05, ratio * 8);
+        const bar = inventoryBars[id];
+        bar.scale.y = barH;
+        const fc = fillColor(ratio);
+        bar.material.color.copy(fc);
+        bar.material.emissive.copy(fc);
+
+        obj.sprite.material.color.set(baseColor);
+        obj.sprite.material.opacity = status === 'congested' ? 0.25 : status === 'blocked' ? 0.35 : 0.12;
+    }
+}
+
+/* ───────── raycasting / tooltip ───────── */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2(-9, -9);
+let hoveredNode = null;
+
+renderer.domElement.addEventListener('pointermove', e => {
+    pointer.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(nodeHitTargets, false);
+    const tooltip = $('tooltip');
+
+    if (hits.length) {
+        const data = hits[0].object.userData;
+        hoveredNode = data.nodeId;
+        const step = state.rollout?.steps[state.stepIndex];
+        const inv = step?.inventory?.[data.nodeId];
+
+        $('tt-name').textContent = data.label + (data.type === 'port' ? ' PORT' : data.type === 'warehouse' ? ' WAREHOUSE' : ' FACTORY');
+        $('tt-stock').textContent  = inv ? inv.current_stock.toLocaleString() : '—';
+        $('tt-cap').textContent    = inv ? inv.capacity.toLocaleString() : '—';
+        const ratio = inv ? inv.current_stock / inv.capacity : 0;
+        $('tt-util').textContent   = inv ? (ratio * 100).toFixed(1) + '%' : '—';
+        $('tt-status').textContent = inv ? inv.status.toUpperCase() : '—';
+        const bar = $('tt-bar');
+        bar.style.width = (ratio * 100) + '%';
+        const c = fillColor(ratio);
+        bar.style.background = '#' + c.getHexString();
+
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 16) + 'px';
+        tooltip.style.top  = (e.clientY - 8) + 'px';
+
+        if (e.clientX + 16 + 200 > window.innerWidth) {
+            tooltip.style.left = (e.clientX - 200) + 'px';
+        }
+    } else {
+        hoveredNode = null;
+        tooltip.style.display = 'none';
+    }
+});
+
+/* ───────── timeline controls ───────── */
+slider.addEventListener('input', () => {
+    const idx = parseInt(slider.value, 10);
+    goToStep(idx);
+});
+
+$('btn-play').addEventListener('click', () => {
+    state.playing = !state.playing;
+    $('btn-play').innerHTML = state.playing ? '&#10074;&#10074;' : '&#9654;';
+});
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.speed = parseFloat(btn.dataset.speed);
+    });
+});
+
+function goToStep(idx) {
+    if (!state.rollout) return;
+    idx = Math.max(0, Math.min(idx, state.rollout.steps.length - 1));
+    state.stepIndex = idx;
+
+    let cumul = 0;
+    for (let i = 0; i <= idx; i++) cumul += state.rollout.steps[i].reward_total;
+    state.cumulativeReward = cumul;
+
+    const step = state.rollout.steps[idx];
+    updateNodes(step);
+    buildShips(step);
+    buildDisruptions(step);
+    updateHUD(step, state.rollout);
+}
+
+/* ───────── playback ───────── */
+let lastPlayTick = 0;
+function tickPlayback(time) {
+    if (!state.playing || !state.rollout) return;
+    const interval = 1000 / state.speed;
+    if (time - lastPlayTick >= interval) {
+        lastPlayTick = time;
+        let next = state.stepIndex + 1;
+        if (next >= state.rollout.steps.length) {
+            next = 0;
+        }
+        goToStep(next);
+    }
+}
+
+/* ───────── data loading ───────── */
+function loadRollout(data) {
+    state.rollout = data;
+    state.stepIndex = 0;
+    state.playing = false;
+    $('btn-play').innerHTML = '&#9654;';
+
+    $('upload-zone').classList.add('hidden');
+    $('load-btn').style.display = 'block';
+
+    goToStep(0);
+}
+
+function handleFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            loadRollout(JSON.parse(e.target.result));
+        } catch (err) {
+            alert('Invalid rollout JSON: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+$('drop-box').addEventListener('click', () => $('file-input').click());
+$('file-input').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+$('drop-box').addEventListener('dragover', e => { e.preventDefault(); $('drop-box').classList.add('dragover'); });
+$('drop-box').addEventListener('dragleave', () => $('drop-box').classList.remove('dragover'));
+$('drop-box').addEventListener('drop', e => {
+    e.preventDefault();
+    $('drop-box').classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+$('btn-demo').addEventListener('click', () => loadRollout(SAMPLE_ROLLOUT));
+
+$('load-btn').addEventListener('click', () => {
+    $('upload-zone').classList.remove('hidden');
+    $('load-btn').style.display = 'none';
+});
+
+/* URL rollout loading */
+{
+    const params = new URLSearchParams(window.location.search);
+    const rolloutUrl = params.get('rollout');
+    if (rolloutUrl) {
+        fetch(rolloutUrl)
+            .then(r => r.json())
+            .then(data => loadRollout(data))
+            .catch(err => console.error('Failed to load rollout from URL:', err));
+    }
+}
+
+/* ───────── animation loop ───────── */
+const clock = new THREE.Clock();
+
+function animate(time) {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+
+    controls.update();
+    tickPlayback(time || 0);
+
+    for (const mat of linkLineMaterials) mat.dashOffset -= 0.04;
+
+    for (const ring of disruptionRings) {
+        ring.userData.phase += dt * 2.5;
+        const s = 1 + 0.3 * Math.sin(ring.userData.phase);
+        ring.scale.set(s, s, s);
+        ring.material.opacity = 0.15 + 0.2 * (0.5 + 0.5 * Math.sin(ring.userData.phase * 1.3));
+    }
+
+    for (const [id, obj] of Object.entries(nodeObjects)) {
+        if (hoveredNode === id) {
+            obj.mesh.scale.lerp(new THREE.Vector3(1.25, 1.25, 1.25), 0.15);
+        } else {
+            obj.mesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+        }
+    }
+
+    composer.render();
+}
+
+/* ───────── resize ───────── */
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ───────── init ───────── */
+animate(0);
+</script>
+</body>
+</html>

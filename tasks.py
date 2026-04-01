@@ -14,7 +14,7 @@ Grader contract:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from env import SupplyChainEnv
 from models import Action, ActionType, Observation
@@ -99,6 +99,28 @@ TASK_MEDIUM = Task(
     tags=["hub-failure", "inventory-management", "multi-ship"],
 )
 
+TASK_CASCADE = Task(
+    task_id="task_cascade_dual_chokepoint",
+    name="The Cascade",
+    difficulty="hard",
+    description=(
+        "A mid-horizon dual-chokepoint scenario over 20 days. PORT_SINGAPORE blocks for 6 days "
+        "(days 3-9), then PORT_ROTTERDAM congests for 6 days (days 10-16). No random demand "
+        "spikes. The agent must pre-position inventory and reroute flow to keep factories "
+        "online while avoiding extreme Bullwhip amplification."
+    ),
+    episode_length=20,
+    shock_config={
+        "scheduled": [
+            {"day": 3, "port": "PORT_SINGAPORE", "status": "blocked", "end_day": 9},
+            {"day": 10, "port": "PORT_ROTTERDAM", "status": "congested", "end_day": 16},
+        ],
+        "random_demand_spikes": False,
+    },
+    success_threshold=0.55,
+    tags=["dual-failure", "planning", "bullwhip"],
+)
+
 TASK_HARD = Task(
     task_id="task_hard_ghost_protocol",
     name="Ghost Protocol",
@@ -109,7 +131,7 @@ TASK_HARD = Task(
         "blocks on day 15. Additionally, demand spikes randomly (+/-80% volatility). "
         "The Bullwhip Effect will amplify through the network. "
         "The agent must maintain >=0.9 network service level across all 3 factories for the "
-        "entire 30-day episode. Any stock-out event (inventory = 0) causes a 30% score penalty "
+        "entire 30-day episode. Any stock-out event (inventory = 0) causes a 20% score penalty "
         "per occurrence. The Bullwhip Index must stay below 2.0."
     ),
     episode_length=30,
@@ -125,7 +147,7 @@ TASK_HARD = Task(
     tags=["multi-failure", "bullwhip", "demand-volatility", "ghost-protocol"],
 )
 
-ALL_TASKS: List[Task] = [TASK_EASY, TASK_MEDIUM, TASK_HARD]
+ALL_TASKS: List[Task] = [TASK_EASY, TASK_MEDIUM, TASK_CASCADE, TASK_HARD]
 
 _FACTORY_IDS = ("FAC_TAIPEI", "FAC_BERLIN", "FAC_AUSTIN")
 
@@ -134,18 +156,18 @@ _FACTORY_IDS = ("FAC_TAIPEI", "FAC_BERLIN", "FAC_AUSTIN")
 
 
 def grade_easy(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskResult:
-    """Easy grader — service level (80 %) + reroute bonus (20 %).
+    """Easy grader — service level (90 %) + reroute bonus (10 %).
 
-    Score = min(service_level, 1.0) * 0.8 + (0.2 if any reroute else 0.0).
+    Score = min(service_level, 1.0) * 0.9 + (0.1 if any reroute else 0.0).
     """
     total_demand = sum(t["demand_total"] for t in trajectory)
     total_fulfilled = sum(t["demand_fulfilled"] for t in trajectory)
 
     service_level = total_fulfilled / max(total_demand, 1e-9)
-    service_score = min(service_level, 1.0) * 0.8
+    service_score = min(service_level, 1.0) * 0.9
 
     rerouted = any(t.get("action_type") == "reroute_ship" for t in trajectory)
-    reroute_bonus = 0.2 if rerouted else 0.0
+    reroute_bonus = 0.1 if rerouted else 0.0
 
     score = round(service_score + reroute_bonus, 4)
     success = score >= TASK_EASY.success_threshold
@@ -216,9 +238,9 @@ def grade_medium(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskR
 def grade_hard(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskResult:
     """Hard grader (Ghost Protocol) — strict multi-metric evaluation.
 
-    base           = min(service_level, 1.0) * 0.6
-    stockout_pen   = min(stockout_events * 0.30, 0.60)
-    bullwhip_pen   = min(violation_days  * 0.10, 0.30)   (violation = BWI > 2.0)
+    base           = min(service_level, 1.0) * 0.8
+    stockout_pen   = min(stockout_events * 0.20, 0.60)
+    bullwhip_pen   = min(violation_events * 0.05, 0.25)   (violation = BWI > 2.0)
     service_bonus  = 0.10 if service_level >= 0.9
     score          = clamp(base - stockout_pen - bullwhip_pen + service_bonus, 0.0, 1.0)
     """
@@ -226,17 +248,28 @@ def grade_hard(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskRes
     total_fulfilled = sum(t["demand_fulfilled"] for t in trajectory)
 
     service_level = total_fulfilled / max(total_demand, 1e-9)
-    base_score = min(service_level, 1.0) * 0.6
+    base_score = min(service_level, 1.0) * 0.8
 
-    stockout_events = sum(
-        1 for t in trajectory if t.get("any_factory_stockout", False)
-    )
-    stockout_penalty = min(stockout_events * 0.30, 0.60)
+    # Count stock-out *events* (rising edges), not stock-out *days*.
+    # This matches the task spec language "per occurrence" and avoids
+    # penalizing a single prolonged outage as dozens of independent events.
+    stockout_events = 0
+    prev_stockout = False
+    for t in trajectory:
+        cur_stockout = bool(t.get("any_factory_stockout", False))
+        if cur_stockout and not prev_stockout:
+            stockout_events += 1
+        prev_stockout = cur_stockout
+    stockout_penalty = min(stockout_events * 0.20, 0.60)
 
-    bullwhip_violation_days = sum(
-        1 for t in trajectory if t.get("bullwhip_index", 1.0) > 2.0
-    )
-    bullwhip_penalty = min(bullwhip_violation_days * 0.10, 0.30)
+    bullwhip_violation_events = 0
+    prev_violation = False
+    for t in trajectory:
+        cur_violation = float(t.get("bullwhip_index", 1.0)) > 2.0
+        if cur_violation and not prev_violation:
+            bullwhip_violation_events += 1
+        prev_violation = cur_violation
+    bullwhip_penalty = min(bullwhip_violation_events * 0.05, 0.25)
 
     service_bonus = 0.10 if service_level >= 0.9 else 0.0
 
@@ -255,9 +288,9 @@ def grade_hard(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskRes
             failure_reasons.append(
                 f"Service level {service_level:.2%} below 90% target"
             )
-        if bullwhip_violation_days > 0:
+        if bullwhip_violation_events > 0:
             failure_reasons.append(
-                f"Bullwhip Index exceeded 2.0 for {bullwhip_violation_days} days"
+                f"Bullwhip Index exceeded 2.0 in {bullwhip_violation_events} period(s)"
             )
 
     return TaskResult(
@@ -267,8 +300,46 @@ def grade_hard(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskRes
         metrics={
             "service_level": round(service_level, 4),
             "stockout_events": stockout_events,
-            "bullwhip_violation_days": bullwhip_violation_days,
+            "bullwhip_violation_events": bullwhip_violation_events,
             "service_bonus_awarded": service_bonus > 0,
+        },
+        failure_reasons=failure_reasons,
+    )
+
+
+def grade_cascade(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskResult:
+    """Cascade grader — service level (70 %) + uptime (20 %) + bullwhip control (10 %)."""
+    total_demand = sum(t["demand_total"] for t in trajectory)
+    total_fulfilled = sum(t["demand_fulfilled"] for t in trajectory)
+    service_level = total_fulfilled / max(total_demand, 1e-9)
+
+    idle_days = sum(1 for t in trajectory if t.get("any_factory_stockout", False))
+    idle_fraction = idle_days / max(len(trajectory), 1)
+
+    max_bullwhip = max((float(t.get("bullwhip_index", 1.0)) for t in trajectory), default=1.0)
+    bullwhip_score = 0.10 if max_bullwhip <= 2.0 else max(0.0, 0.10 - min(0.10, (max_bullwhip - 2.0) * 0.02))
+
+    score = round(min(service_level, 1.0) * 0.70 + (1.0 - idle_fraction) * 0.20 + bullwhip_score, 4)
+    score = max(0.0, min(1.0, score))
+    success = score >= TASK_CASCADE.success_threshold
+
+    failure_reasons: List[str] = []
+    if not success:
+        failure_reasons.append(f"Service level {service_level:.2%} below target")
+        if idle_days > 0:
+            failure_reasons.append(f"Factory stockout on {idle_days} day(s)")
+        if max_bullwhip > 2.0:
+            failure_reasons.append(f"Bullwhip Index exceeded 2.0 (max={max_bullwhip:.2f})")
+
+    return TaskResult(
+        task_id=TASK_CASCADE.task_id,
+        score=score,
+        success=success,
+        metrics={
+            "service_level": round(service_level, 4),
+            "idle_days": idle_days,
+            "idle_fraction": round(idle_fraction, 4),
+            "max_bullwhip_index": round(max_bullwhip, 4),
         },
         failure_reasons=failure_reasons,
     )
@@ -277,6 +348,7 @@ def grade_hard(env: SupplyChainEnv, trajectory: List[Dict[str, Any]]) -> TaskRes
 GRADERS: Dict[str, Callable[..., TaskResult]] = {
     TASK_EASY.task_id: grade_easy,
     TASK_MEDIUM.task_id: grade_medium,
+    TASK_CASCADE.task_id: grade_cascade,
     TASK_HARD.task_id: grade_hard,
 }
 
@@ -286,7 +358,7 @@ GRADERS: Dict[str, Callable[..., TaskResult]] = {
 
 def run_task(
     task: Task,
-    agent_fn: Callable[[Observation], Action],
+    agent_fn: Callable[..., Action],
     seed: int = 42,
     verbose: bool = False,
 ) -> Tuple[TaskResult, List[Dict[str, Any]]]:
@@ -314,9 +386,13 @@ def run_task(
     obs = env.reset()
     trajectory: List[Dict[str, Any]] = []
     done = False
+    prev_step: Optional[Dict[str, Any]] = None
 
     while not done:
-        action = agent_fn(obs)
+        try:
+            action = agent_fn(obs, prev_step, task)
+        except TypeError:
+            action = agent_fn(obs)
         next_obs, reward, done, info = env.step(action)
 
         any_stockout = any(
@@ -334,6 +410,7 @@ def run_task(
             "any_factory_stockout": any_stockout,
         }
         trajectory.append(step_data)
+        prev_step = step_data
 
         if verbose:
             print(

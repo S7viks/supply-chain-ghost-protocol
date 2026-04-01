@@ -2,11 +2,11 @@
   "task_easy_delay": {
     "task": "task_easy_delay",
     "difficulty": "easy",
-    "score": 1.0,
+    "score": 0.9,
     "success": true,
     "metrics": {
       "service_level": 1.0,
-      "rerouted_ship": true
+      "rerouted_ship": false
     },
     "failure_reasons": []
   },
@@ -22,21 +22,38 @@
     },
     "failure_reasons": []
   },
+  "task_cascade_dual_chokepoint": {
+    "task": "task_cascade_dual_chokepoint",
+    "difficulty": "hard",
+    "score": 0.5297,
+    "success": false,
+    "metrics": {
+      "service_level": 0.5996,
+      "idle_days": 9,
+      "idle_fraction": 0.45,
+      "max_bullwhip_index": 427.472
+    },
+    "failure_reasons": [
+      "Service level 59.96% below target",
+      "Factory stockout on 9 day(s)",
+      "Bullwhip Index exceeded 2.0 (max=427.47)"
+    ]
+  },
   "task_hard_ghost_protocol": {
     "task": "task_hard_ghost_protocol",
     "difficulty": "hard",
-    "score": 0.0,
+    "score": 0.0644,
     "success": false,
     "metrics": {
-      "service_level": 0.4984,
-      "stockout_events": 17,
-      "bullwhip_violation_days": 29,
+      "service_level": 0.393,
+      "stockout_events": 1,
+      "bullwhip_violation_events": 1,
       "service_bonus_awarded": false
     },
     "failure_reasons": [
-      "CRITICAL: 17 stock-out event(s) -- 60% penalty applied",
-      "Service level 49.84% below 90% target",
-      "Bullwhip Index exceeded 2.0 for 29 days"
+      "CRITICAL: 1 stock-out event(s) -- 20% penalty applied",
+      "Service level 39.30% below 90% target",
+      "Bullwhip Index exceeded 2.0 in 1 period(s)"
     ]
   }
 }

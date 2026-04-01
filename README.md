@@ -101,6 +101,20 @@ The observation is a rich structured state snapshot:
 
 ---
 
+### 🟠 Hard — "The Cascade" (20 days)
+
+**Scenario:** Two major chokepoints fail in sequence (no random demand spikes):
+- Day 3–9: PORT_SINGAPORE → blocked
+- Day 10–16: PORT_ROTTERDAM → congested
+
+**Objective:** Keep factories online by pre-positioning inventory, rerouting flow, and suppressing Bullwhip amplification.
+
+**Success Threshold:** Score ≥ 0.55
+
+**What it tests:** Mid-horizon planning and stability under sequential infrastructure failures.
+
+---
+
 ### 🔴 Hard — "Ghost Protocol" (30 days)
 
 **Scenario:** Everything fails at once, then keeps failing:
@@ -111,7 +125,7 @@ The observation is a rich structured state snapshot:
 
 **Objective:** Maintain ≥ 90% network service level for 30 days. Bullwhip Index must stay below 2.0.
 
-**Grader penalty:** -30% score per stock-out event. Any inventory hitting zero is catastrophic.
+**Grader penalty:** -20% score per stock-out event. Any inventory hitting zero is catastrophic.
 
 **Success Threshold:** Score ≥ 0.50
 
@@ -242,13 +256,14 @@ print(f"Final service level: {obs.network_service_level:.2%}")
 
 ## 📊 Baseline Scores
 
-Scores produced by `Qwen/Qwen2.5-72B-Instruct` via HF Router (seed=42):
+Scores from `baseline_scores.json` (seed=42). If the LLM API is unreachable or unauthorized, the agent falls back to `noop`.
 
 | Task | Difficulty | Score | Pass/Fail |
 |------|-----------|-------|-----------|
-| The Delay | Easy | 1.0000 | ✅ PASS |
+| The Delay | Easy | 0.9000 | ✅ PASS |
 | The Blockage | Medium | 0.8415 | ✅ PASS |
-| Ghost Protocol | Hard | 0.0000 | ❌ FAIL |
+| The Cascade | Hard | 0.5297 | ❌ FAIL |
+| Ghost Protocol | Hard | 0.0644 | ❌ FAIL |
 
 The Hard task genuinely challenges frontier models — multiple simultaneous failures with stochastic demand require multi-step lookahead that pure reactive agents lack.
 
@@ -293,8 +308,9 @@ The Hard task genuinely challenges frontier models — multiple simultaneous fai
 supply-chain-ghost-protocol/
 ├── models.py          # Pydantic types: Observation, Action, Reward
 ├── env.py             # SupplyChainEnv with Bullwhip Effect
-├── tasks.py           # 3 tasks + deterministic graders
-├── server.py          # FastAPI server (OpenEnv HTTP API)
+├── tasks.py           # Tasks + deterministic graders
+├── app_server.py      # FastAPI server (OpenEnv HTTP API)
+├── server/            # OpenEnv serve entrypoint package
 ├── inference.py       # Baseline inference script (OpenAI client)
 ├── openenv.yaml       # OpenEnv metadata + spec
 ├── requirements.txt

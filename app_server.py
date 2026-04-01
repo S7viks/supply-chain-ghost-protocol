@@ -7,11 +7,15 @@ Required for Hugging Face Spaces deployment.
 
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from env import SupplyChainEnv
@@ -184,3 +188,59 @@ def close_session(session_id: str) -> Dict[str, str]:
     """Clean up a session."""
     _sessions.pop(session_id, None)
     return {"status": "closed"}
+
+
+# ─── 3D Viewer & Rollout Endpoints ───────────────────────────────────────────
+
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
+_ROLLOUTS_DIR = Path(__file__).resolve().parent / "rollouts"
+
+
+@app.get("/viewer")
+def viewer():
+    """Serve the 3D rollout viewer."""
+    html_path = _STATIC_DIR / "viewer.html"
+    if not html_path.exists():
+        raise HTTPException(status_code=404, detail="viewer.html not found")
+    return FileResponse(str(html_path), media_type="text/html")
+
+
+@app.get("/api/rollouts")
+def list_rollouts() -> Dict[str, Any]:
+    """List available recorded rollouts."""
+    if not _ROLLOUTS_DIR.exists():
+        return {"rollouts": []}
+    results = []
+    for f in sorted(_ROLLOUTS_DIR.glob("*.json")):
+        entry: Dict[str, Any] = {"filename": f.name}
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            entry.update({
+                "task_name": data.get("task_name", ""),
+                "difficulty": data.get("difficulty", ""),
+                "policy_name": data.get("policy_name", ""),
+                "final_score": data.get("final_score"),
+                "episode_length": data.get("episode_length"),
+            })
+        except (json.JSONDecodeError, OSError):
+            pass
+        results.append(entry)
+    return {"rollouts": results}
+
+
+@app.get("/api/rollouts/{filename}")
+def get_rollout(filename: str):
+    """Serve a specific rollout JSON file."""
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    filepath = _ROLLOUTS_DIR / filename
+    if not filepath.exists() or filepath.suffix != ".json":
+        raise HTTPException(status_code=404, detail="Rollout not found")
+    resolved = filepath.resolve()
+    if not str(resolved).startswith(str(_ROLLOUTS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    return FileResponse(str(resolved), media_type="application/json")
+
+
+if _STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
