@@ -69,7 +69,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # ─────────────────────────────────────────────────────────────
 # Entrypoint
 # ─────────────────────────────────────────────────────────────
-CMD ["uvicorn", "server:app", \
+CMD ["uvicorn", "app_server:app", \
      "--host", "0.0.0.0", \
      "--port", "7860", \
      "--workers", "1", \

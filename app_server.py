@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from env import SupplyChainEnv
 from models import Action, Observation, Reward
+from openenv.core.env_server.types import State as OpenEnvState
 from tasks import ALL_TASKS, TASK_EASY
 
 app = FastAPI(
@@ -66,7 +67,55 @@ class StepResponse(BaseModel):
 
 @app.get("/health")
 def health() -> Dict[str, str]:
-    return {"status": "ok", "environment": "supply-chain-ghost-protocol"}
+    return {"status": "healthy", "environment": "supply-chain-ghost-protocol"}
+
+
+@app.get("/metadata")
+def metadata() -> Dict[str, str]:
+    return {
+        "name": "supply-chain-ghost-protocol",
+        "description": (
+            "OpenEnv-compliant supply chain crisis management RL environment "
+            "with Bullwhip Effect simulation"
+        ),
+        "version": "1.0.0",
+        "author": "Ch Sai Sathvik",
+    }
+
+
+@app.get("/schema")
+def schema() -> Dict[str, Any]:
+    return {
+        "action": Action.model_json_schema(),
+        "observation": Observation.model_json_schema(),
+        "state": OpenEnvState.model_json_schema(),
+    }
+
+
+@app.post("/mcp")
+def mcp_endpoint(request: dict) -> Dict[str, Any]:
+    """Minimal MCP JSON-RPC 2.0 endpoint."""
+    method = request.get("method", "")
+    request_id = request.get("id", 1)
+
+    if method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "tools": [
+                    {"name": "reset", "description": "Reset the environment"},
+                    {"name": "step", "description": "Take a step in the environment"},
+                    {"name": "state", "description": "Get current environment state"},
+                ]
+            },
+        }
+
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "error": {"code": -32601, "message": f"Method not found: {method}"},
+    }
 
 
 @app.get("/tasks")
@@ -112,6 +161,12 @@ def step(request: StepRequest) -> StepResponse:
     session["done"] = done
 
     return StepResponse(observation=obs, reward=reward, done=done, info=info)
+
+
+@app.get("/state")
+def state_default() -> Dict[str, Any]:
+    """OpenEnv-compatible stateless state endpoint."""
+    return {"episode_id": None, "step_count": 0}
 
 
 @app.get("/state/{session_id}", response_model=Observation)

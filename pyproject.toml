@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "supply-chain-ghost-protocol"
+version = "1.0.0"
+description = "OpenEnv-compliant supply chain crisis management RL environment with Bullwhip Effect simulation"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Ch Sai Sathvik"}]
+dependencies = [
+    "openenv-core>=0.1.0",
+    "pydantic>=2.5.0,<3.0.0",
+    "openai>=1.12.0",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "numpy>=1.26.0,<2.0.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "httpx>=0.26.0",
+]
