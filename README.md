@@ -89,6 +89,18 @@ The observation is a rich structured state snapshot:
 
 ---
 
+### 🟢 Easy — "Reroute Drill" (5 days)
+
+**Scenario:** PORT_SINGAPORE is blocked immediately (days 0–2).
+
+**Objective:** Issue a reroute quickly and maintain high service levels over a short horizon.
+
+**Success Threshold:** Score ≥ 0.75
+
+**What it tests:** Reaction time + correct action selection (don’t freeze during a hub failure).
+
+---
+
 ### 🟡 Medium — "The Blockage" (14 days)
 
 **Scenario:** PORT_SINGAPORE — Asia-Pacific's largest hub — closes completely for 5 days (days 2–7) due to a canal authority dispute. 40% of regional throughput disappears overnight.
@@ -98,6 +110,30 @@ The observation is a rich structured state snapshot:
 **Success Threshold:** Score ≥ 0.60
 
 **What it tests:** Multi-step planning — the agent must anticipate demand burn-down 5+ days ahead and pre-position inventory.
+
+---
+
+### 🟡 Medium — "Buffer Tuning" (10 days)
+
+**Scenario:** No port shocks.
+
+**Objective:** Keep factories buffered without inducing instability (panic ordering / high Bullwhip).
+
+**Success Threshold:** Score ≥ 0.65
+
+**What it tests:** Steady-state inventory policy and bullwhip suppression.
+
+---
+
+### 🟡 Medium — "Europe Shock" (12 days)
+
+**Scenario:** PORT_ROTTERDAM blocks for 5 days (days 2–6), disrupting WH_EUROPE_HUB.
+
+**Objective:** Keep FAC_BERLIN online and maintain overall service levels.
+
+**Success Threshold:** Score ≥ 0.60
+
+**What it tests:** Regional resilience under European throughput collapse.
 
 ---
 
@@ -112,6 +148,30 @@ The observation is a rich structured state snapshot:
 **Success Threshold:** Score ≥ 0.55
 
 **What it tests:** Mid-horizon planning and stability under sequential infrastructure failures.
+
+---
+
+### 🔴 Hard — "Multi-Port Whiplash" (18 days)
+
+**Scenario:** Alternating port congestion across Asia and Europe creates repeated throughput swings.
+
+**Objective:** Sustain service levels while preventing sustained bullwhip amplification.
+
+**Success Threshold:** Score ≥ 0.55
+
+**What it tests:** Stability under repeated capacity shocks.
+
+---
+
+### 🔴 Hard — "Demand Surge" (20 days)
+
+**Scenario:** No port disruptions, but random demand spikes occur throughout.
+
+**Objective:** Maintain service levels and suppress bullwhip under stochastic demand.
+
+**Success Threshold:** Score ≥ 0.55
+
+**What it tests:** Robustness to demand volatility (not just logistics routing).
 
 ---
 
@@ -132,6 +192,16 @@ The observation is a rich structured state snapshot:
 **What it tests:** Long-horizon crisis management, Bullwhip suppression, multi-objective optimization under uncertainty.
 
 ---
+
+### 🔴 Hard — "Ghost Protocol Plus" (30 days)
+
+**Scenario:** Extended disruption windows plus random demand spikes.
+
+**Objective:** Stress-test long-horizon planning and stability under compounding uncertainty.
+
+**Success Threshold:** Score ≥ 0.45
+
+**What it tests:** Frontier-level long-horizon robustness.
 
 ## ⚖️ Reward Shaping — Design Philosophy
 
@@ -183,6 +253,20 @@ Emergency actions are expensive by design — they teach the agent to plan ahead
 ---
 
 ## 🚀 Setup & Usage
+
+### HF Space Secrets
+
+The inference script and Docker container require three environment variables.
+On Hugging Face Spaces, set these under **Settings -> Repository secrets**:
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `API_BASE_URL` | `https://router.huggingface.co/v1` | HF Router endpoint (OpenAI-compatible) |
+| `MODEL_NAME` | `Qwen/Qwen2.5-72B-Instruct` | Any model available via HF Router |
+| `HF_TOKEN` | *(your token)* | HF access token with Inference permission. **Never commit this.** |
+
+If `HF_TOKEN` is missing or invalid, `inference.py` exits immediately with a
+clear error message instead of silently falling back to noop actions.
 
 ### Local Development
 
@@ -256,16 +340,30 @@ print(f"Final service level: {obs.network_service_level:.2%}")
 
 ## 📊 Baseline Scores
 
-Scores from `baseline_scores.json` (seed=42). If the LLM API is unreachable or unauthorized, the agent falls back to `noop`.
+Scores from `baseline_scores.json` (seed=42, `Qwen/Qwen2.5-72B-Instruct` via HF Router).
+When the LLM API is unavailable, the agent falls back to a domain-aware heuristic policy
+(reroute blocked ships, expedite critical factories, buffer disrupted warehouses).
 
 | Task | Difficulty | Score | Pass/Fail |
 |------|-----------|-------|-----------|
-| The Delay | Easy | 0.9000 | ✅ PASS |
-| The Blockage | Medium | 0.8415 | ✅ PASS |
-| The Cascade | Hard | 0.5297 | ❌ FAIL |
-| Ghost Protocol | Hard | 0.0644 | ❌ FAIL |
+| The Delay | Easy | 0.9000 | PASS |
+| Reroute Drill | Easy | 0.7500 | PASS |
+| The Blockage | Medium | 1.0000 | PASS |
+| Buffer Tuning | Medium | 0.8572 | PASS |
+| Europe Shock | Medium | 0.9000 | PASS |
+| The Cascade | Hard | 0.9000 | PASS |
+| Multi-Port Whiplash | Hard | 0.7000 | PASS |
+| Demand Surge | Hard | 0.5000 | FAIL |
+| Ghost Protocol | Hard | 0.6246 | PASS |
+| Ghost Protocol Plus | Hard | 0.5230 | PASS |
 
-The Hard task genuinely challenges frontier models — multiple simultaneous failures with stochastic demand require multi-step lookahead that pure reactive agents lack.
+**Average: 0.7655** | 9/10 tasks pass threshold.
+
+The inference script cascades through models (`MODEL_NAME` -> `FALLBACK_MODEL` -> two
+additional small models) before falling back to a domain-aware heuristic agent. This
+ensures the baseline always produces meaningful actions. The `Demand Surge` task is the
+sole failure point: the heuristic maintains 100% service level but cannot suppress
+Bullwhip amplification under volatile demand (max index 99.6 vs. target < 2.0).
 
 ---
 

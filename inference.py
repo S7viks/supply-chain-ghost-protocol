@@ -26,7 +26,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from openai import OpenAI
 
 from models import Action, ActionType, Observation
+from rollout import HeuristicAgent
 from tasks import ALL_TASKS, Task, run_task
+
+_heuristic = HeuristicAgent()
 
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -34,6 +37,22 @@ from tasks import ALL_TASKS, Task, run_task
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 API_KEY      = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
 MODEL_NAME   = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+FALLBACK_MODELS = [
+    os.getenv("FALLBACK_MODEL", "google/gemma-3-27b-it"),
+    "Qwen/Qwen2.5-7B-Instruct",
+    "meta-llama/Llama-3.1-8B-Instruct",
+]
+
+if not API_KEY:
+    import sys
+    print(
+        "FATAL: HF_TOKEN (or API_KEY) is not set. "
+        "Export it before running inference:\n"
+        "  export HF_TOKEN='hf_...'\n"
+        "On HF Spaces, add it under Settings -> Repository secrets.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 MAX_STEPS   = 30
 TEMPERATURE = 0.1
@@ -41,6 +60,8 @@ MAX_TOKENS  = 512
 SEED        = 42
 
 client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+_active_model = MODEL_NAME
 
 
 # ─── System Prompt ───────────────────────────────────────────────────────────
@@ -197,34 +218,65 @@ class _AgentMemory:
         return messages
 
 
+def _llm_call(model: str, messages: List[Dict[str, str]]) -> str:
+    """Single LLM completion call. Returns the response text or raises."""
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=TEMPERATURE,
+        max_tokens=MAX_TOKENS,
+        seed=SEED,
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
 def make_llm_agent(task: Task) -> Any:
-    """Build a stateful LLM agent closure for a given task."""
+    """Build a stateful LLM agent closure for a given task.
+
+    Model cascade on failure:
+        1. Primary model (MODEL_NAME)
+        2. Fallback models (FALLBACK_MODELS) — tried in order
+        3. HeuristicAgent — domain-aware rule-based policy
+    """
+    global _active_model
     mem = _AgentMemory()
     brief = _task_brief(task)
 
     def llm_agent(obs: Observation, prev_step: Optional[Dict[str, Any]] = None, _task: Optional[Task] = None) -> Action:
-        """Query the LLM with multi-turn context; return a typed action."""
+        """Query the LLM with model cascade; fall back to heuristic as last resort."""
+        global _active_model
         user_message = "\n\n".join([brief, _prev_outcome_brief(prev_step), "CURRENT OBSERVATION:", obs_to_prompt(obs)])
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *mem.to_messages(),
+            {"role": "user", "content": user_message},
+        ]
 
-        try:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    *mem.to_messages(),
-                    {"role": "user", "content": user_message},
-                ],
-                temperature=TEMPERATURE,
-                max_tokens=MAX_TOKENS,
-                seed=SEED,
-            )
-            action_text = (response.choices[0].message.content or "").strip()
-            action = parse_action(action_text)
-            mem.append(user_message, action.model_dump_json())
-            return action
-        except Exception as exc:
-            print(f"[ERROR] LLM call failed: {exc}")
-            return Action(action_type=ActionType.NOOP)
+        models_to_try = [_active_model] if _active_model != MODEL_NAME else [MODEL_NAME]
+        for fb in FALLBACK_MODELS:
+            if fb not in models_to_try:
+                models_to_try.append(fb)
+        if MODEL_NAME not in models_to_try:
+            models_to_try.insert(0, MODEL_NAME)
+
+        for model in models_to_try:
+            try:
+                action_text = _llm_call(model, messages)
+                action = parse_action(action_text)
+                mem.append(user_message, action.model_dump_json())
+                if model != _active_model:
+                    print(f"[MODEL] Switched to {model}")
+                    _active_model = model
+                return action
+            except Exception as exc:
+                status = getattr(exc, "status_code", None)
+                if status in (401, 402, 429):
+                    continue
+                print(f"[ERROR] {model}: {type(exc).__name__}: {exc}")
+                continue
+
+        print("[FALLBACK] All models exhausted, using heuristic agent")
+        return _heuristic(obs, prev_step, _task or task)
 
     return llm_agent
 
@@ -241,8 +293,9 @@ def run_all_tasks(
 
     print("=" * 60)
     print("Supply Chain Ghost Protocol -- Baseline Inference")
-    print(f"Model: {MODEL_NAME}")
-    print(f"API:   {API_BASE_URL}")
+    print(f"Model:     {MODEL_NAME}")
+    print(f"Fallbacks: {', '.join(FALLBACK_MODELS)}")
+    print(f"API:       {API_BASE_URL}")
     print("=" * 60)
 
     for task in ALL_TASKS:

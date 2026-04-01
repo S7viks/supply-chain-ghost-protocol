@@ -10,50 +10,122 @@
     },
     "failure_reasons": []
   },
+  "task_easy_reroute_drill": {
+    "task": "task_easy_reroute_drill",
+    "difficulty": "easy",
+    "score": 0.75,
+    "success": true,
+    "metrics": {
+      "service_level": 1.0,
+      "first_reroute_step": null,
+      "reroute_count": 0
+    },
+    "failure_reasons": []
+  },
   "task_medium_blockage": {
     "task": "task_medium_blockage",
     "difficulty": "medium",
-    "score": 0.8415,
+    "score": 1.0,
     "success": true,
     "metrics": {
-      "service_level": 0.8654,
-      "idle_days": 3,
-      "idle_fraction": 0.2143
+      "service_level": 1.0,
+      "idle_days": 0,
+      "idle_fraction": 0.0
+    },
+    "failure_reasons": []
+  },
+  "task_medium_buffer_tuning": {
+    "task": "task_medium_buffer_tuning",
+    "difficulty": "medium",
+    "score": 0.8572,
+    "success": true,
+    "metrics": {
+      "service_level": 1.0,
+      "stockout_days": 0,
+      "idle_fraction": 0.0,
+      "max_bullwhip_index": 9.1401,
+      "adjust_count": 0,
+      "expedite_count": 0,
+      "reroute_count": 0
+    },
+    "failure_reasons": []
+  },
+  "task_medium_europe_shock": {
+    "task": "task_medium_europe_shock",
+    "difficulty": "medium",
+    "score": 0.9,
+    "success": true,
+    "metrics": {
+      "service_level": 1.0,
+      "idle_days": 0,
+      "idle_fraction": 0.0,
+      "max_bullwhip_index": 13.8292
     },
     "failure_reasons": []
   },
   "task_cascade_dual_chokepoint": {
     "task": "task_cascade_dual_chokepoint",
     "difficulty": "hard",
-    "score": 0.5297,
+    "score": 0.9,
+    "success": true,
+    "metrics": {
+      "service_level": 1.0,
+      "idle_days": 0,
+      "idle_fraction": 0.0,
+      "max_bullwhip_index": 31.7912
+    },
+    "failure_reasons": []
+  },
+  "task_hard_multiport_whiplash": {
+    "task": "task_hard_multiport_whiplash",
+    "difficulty": "hard",
+    "score": 0.7,
+    "success": true,
+    "metrics": {
+      "service_level": 1.0,
+      "stockout_events": 0,
+      "bullwhip_violation_events": 1
+    },
+    "failure_reasons": []
+  },
+  "task_hard_demand_surge_no_ports": {
+    "task": "task_hard_demand_surge_no_ports",
+    "difficulty": "hard",
+    "score": 0.5,
     "success": false,
     "metrics": {
-      "service_level": 0.5996,
-      "idle_days": 9,
-      "idle_fraction": 0.45,
-      "max_bullwhip_index": 427.472
+      "service_level": 1.0,
+      "stockout_events": 0,
+      "max_bullwhip_index": 99.6052
     },
     "failure_reasons": [
-      "Service level 59.96% below target",
-      "Factory stockout on 9 day(s)",
-      "Bullwhip Index exceeded 2.0 (max=427.47)"
+      "Bullwhip max 99.61",
+      "Service level 100.00%"
     ]
   },
   "task_hard_ghost_protocol": {
     "task": "task_hard_ghost_protocol",
     "difficulty": "hard",
-    "score": 0.0644,
-    "success": false,
+    "score": 0.6246,
+    "success": true,
     "metrics": {
-      "service_level": 0.393,
+      "service_level": 0.9683,
       "stockout_events": 1,
       "bullwhip_violation_events": 1,
-      "service_bonus_awarded": false
+      "service_bonus_awarded": true
     },
-    "failure_reasons": [
-      "CRITICAL: 1 stock-out event(s) -- 20% penalty applied",
-      "Service level 39.30% below 90% target",
-      "Bullwhip Index exceeded 2.0 in 1 period(s)"
-    ]
+    "failure_reasons": []
+  },
+  "task_expert_ghost_protocol_plus": {
+    "task": "task_expert_ghost_protocol_plus",
+    "difficulty": "hard",
+    "score": 0.523,
+    "success": true,
+    "metrics": {
+      "service_level": 0.9683,
+      "stockout_events": 1,
+      "bullwhip_violation_events": 1
+    },
+    "failure_reasons": []
   }
 }

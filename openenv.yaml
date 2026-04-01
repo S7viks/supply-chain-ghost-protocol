@@ -155,6 +155,15 @@ tasks:
       Single ship delayed 48h. Agent must reroute to secondary port within 1 day
       to prevent factory stock-out. Tests basic routing decision-making.
 
+  - id: task_easy_reroute_drill
+    name: "Reroute Drill"
+    difficulty: easy
+    episode_length: 5
+    success_threshold: 0.75
+    description: >
+      Immediate Singapore blockage (days 0–2). Agent should quickly reroute ships away
+      from PORT_SINGAPORE and maintain service levels over a short horizon.
+
   - id: task_medium_blockage
     name: "The Blockage"
     difficulty: medium
@@ -164,6 +173,24 @@ tasks:
       PORT_SINGAPORE (largest Asia-Pacific hub) closes for 5 days. Agent must
       redistribute shipments and manage warehouse inventory to maintain ≥0.85
       service level. Tests multi-step planning under capacity constraint.
+
+  - id: task_medium_buffer_tuning
+    name: "Buffer Tuning"
+    difficulty: medium
+    episode_length: 10
+    success_threshold: 0.65
+    description: >
+      No port shocks. Agent should keep factories buffered without inducing excessive
+      instability or panic ordering. Tests steadiness and bullwhip control.
+
+  - id: task_medium_europe_shock
+    name: "Europe Shock"
+    difficulty: medium
+    episode_length: 12
+    success_threshold: 0.6
+    description: >
+      PORT_ROTTERDAM blocks for 5 days (days 2–6), disrupting WH_EUROPE_HUB. Agent must
+      keep FAC_BERLIN online and maintain overall service levels.
 
   - id: task_cascade_dual_chokepoint
     name: "The Cascade"
@@ -175,6 +202,24 @@ tasks:
       for 6 days (days 3–9) followed by PORT_ROTTERDAM congestion for 6 days
       (days 10–16). Tests mid-horizon planning, rerouting, and Bullwhip control.
 
+  - id: task_hard_multiport_whiplash
+    name: "Multi-Port Whiplash"
+    difficulty: hard
+    episode_length: 18
+    success_threshold: 0.55
+    description: >
+      Alternating port congestion across Asia and Europe creates repeated throughput swings.
+      Agent must sustain service levels while preventing sustained bullwhip amplification.
+
+  - id: task_hard_demand_surge_no_ports
+    name: "Demand Surge"
+    difficulty: hard
+    episode_length: 20
+    success_threshold: 0.55
+    description: >
+      No port disruptions, but random demand spikes occur throughout the episode. Agent must
+      maintain service levels and suppress bullwhip under stochastic demand.
+
   - id: task_hard_ghost_protocol
     name: "Ghost Protocol"
     difficulty: hard
@@ -184,6 +229,15 @@ tasks:
       Cascading multi-port failures + random demand spikes. Agent must maintain
       ≥0.90 network service level with Bullwhip Index < 2.0. Any stock-out event
       applies a -20% score penalty. Tests long-horizon crisis management.
+
+  - id: task_expert_ghost_protocol_plus
+    name: "Ghost Protocol Plus"
+    difficulty: hard
+    episode_length: 30
+    success_threshold: 0.45
+    description: >
+      Extended disruption windows plus random demand spikes. Designed to stress-test long-horizon
+      planning and stability under compounding uncertainty.
 
 # ─────────────────────────────────────────────
 # Infrastructure

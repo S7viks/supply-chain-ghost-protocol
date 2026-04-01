@@ -1,11 +1,25 @@
+# ── Python caches ────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
-.env
-Context/
-ROADMAP.md
-.cursor/
+
+# ── Test / build artifacts ───────────────────────────────────
+.pytest_cache/
 *.egg-info/
 dist/
 build/
-.pytest_cache/
+
+# ── Secrets (never commit) ──────────────────────────────────
+.env*
+
+# ── OS / editor junk ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ── Local dev only (not part of submission) ──────────────────
+Context/
+ROADMAP.md
+.cursor/
