@@ -5,56 +5,56 @@
         "task_cascade_dual_chokepoint": {
           "task_name": "The Cascade",
           "difficulty": "hard",
-          "n_seeds": 2,
-          "score_mean": 0.8823,
+          "n_seeds": 3,
+          "score_mean": 0.8882,
           "score_min": 0.8647,
           "score_max": 0.9,
-          "service_level_mean": 0.975,
-          "stockout_days_mean": 1.5,
-          "max_bullwhip_mean": 145.2226,
-          "total_reward_mean": -19395.63
+          "service_level_mean": 0.9833,
+          "stockout_days_mean": 1.0,
+          "max_bullwhip_mean": 102.5249,
+          "total_reward_mean": -13899.02
         },
         "task_easy_delay": {
           "task_name": "The Delay",
           "difficulty": "easy",
-          "n_seeds": 2,
+          "n_seeds": 3,
           "score_mean": 0.9,
           "score_min": 0.9,
           "score_max": 0.9,
           "service_level_mean": 1.0,
           "stockout_days_mean": 0.0,
           "max_bullwhip_mean": 9.0,
-          "total_reward_mean": -550.64
+          "total_reward_mean": -550.97
         },
         "task_hard_ghost_protocol": {
           "task_name": "Ghost Protocol",
           "difficulty": "hard",
-          "n_seeds": 2,
-          "score_mean": 0.4057,
+          "n_seeds": 3,
+          "score_mean": 0.4863,
           "score_min": 0.1976,
-          "score_max": 0.6139,
-          "service_level_mean": 0.8833,
-          "stockout_days_mean": 5.0,
-          "max_bullwhip_mean": 66.8101,
-          "total_reward_mean": -20464.86
+          "score_max": 0.6473,
+          "service_level_mean": 0.9111,
+          "stockout_days_mean": 3.67,
+          "max_bullwhip_mean": 61.4186,
+          "total_reward_mean": -15903.2
         },
         "task_medium_blockage": {
           "task_name": "The Blockage",
           "difficulty": "medium",
-          "n_seeds": 2,
-          "score_mean": 0.9869,
+          "n_seeds": 3,
+          "score_mean": 0.9913,
           "score_min": 0.9738,
           "score_max": 1.0,
-          "service_level_mean": 0.9643,
-          "stockout_days_mean": 0.5,
-          "max_bullwhip_mean": 145.2226,
-          "total_reward_mean": -9169.14
+          "service_level_mean": 0.9762,
+          "stockout_days_mean": 0.33,
+          "max_bullwhip_mean": 102.5249,
+          "total_reward_mean": -6681.57
         }
       },
       "overall": {
-        "n_runs": 8,
-        "score_mean": 0.7937,
-        "service_level_mean": 0.9557
+        "n_runs": 12,
+        "score_mean": 0.8164,
+        "service_level_mean": 0.9677
       }
     },
     "naive": {
@@ -62,55 +62,55 @@
         "task_cascade_dual_chokepoint": {
           "task_name": "The Cascade",
           "difficulty": "hard",
-          "n_seeds": 2,
-          "score_mean": 0.5269,
+          "n_seeds": 3,
+          "score_mean": 0.5338,
           "score_min": 0.5256,
-          "score_max": 0.5281,
+          "score_max": 0.5477,
           "service_level_mean": 0.55,
           "stockout_days_mean": 9.0,
-          "max_bullwhip_mean": 689.0697,
-          "total_reward_mean": -107273.31
+          "max_bullwhip_mean": 678.9104,
+          "total_reward_mean": -99896.96
         },
         "task_easy_delay": {
           "task_name": "The Delay",
           "difficulty": "easy",
-          "n_seeds": 2,
+          "n_seeds": 3,
           "score_mean": 0.9,
           "score_min": 0.9,
           "score_max": 0.9,
           "service_level_mean": 1.0,
           "stockout_days_mean": 0.0,
           "max_bullwhip_mean": 9.0,
-          "total_reward_mean": -550.64
+          "total_reward_mean": -550.97
         },
         "task_hard_ghost_protocol": {
           "task_name": "Ghost Protocol",
           "difficulty": "hard",
-          "n_seeds": 2,
-          "score_mean": 0.0554,
+          "n_seeds": 3,
+          "score_mean": 0.0597,
           "score_min": 0.0522,
-          "score_max": 0.0586,
+          "score_max": 0.0682,
           "service_level_mean": 0.3667,
-          "stockout_days_mean": 19.5,
-          "max_bullwhip_mean": 154.3659,
-          "total_reward_mean": -141728.73
+          "stockout_days_mean": 19.33,
+          "max_bullwhip_mean": 191.8083,
+          "total_reward_mean": -141383.8
         },
         "task_medium_blockage": {
           "task_name": "The Blockage",
           "difficulty": "medium",
-          "n_seeds": 2,
-          "score_mean": 0.8314,
+          "n_seeds": 3,
+          "score_mean": 0.8405,
           "score_min": 0.8266,
-          "score_max": 0.8362,
+          "score_max": 0.8587,
           "service_level_mean": 0.7857,
           "stockout_days_mean": 3.0,
-          "max_bullwhip_mean": 659.1983,
-          "total_reward_mean": -48458.67
+          "max_bullwhip_mean": 658.9961,
+          "total_reward_mean": -43813.48
         }
       },
       "overall": {
-        "n_runs": 8,
-        "score_mean": 0.5784,
+        "n_runs": 12,
+        "score_mean": 0.5835,
         "service_level_mean": 0.6756
       }
     }
@@ -118,14 +118,15 @@
   "metadata": {
     "seeds": [
       0,
-      1
+      1,
+      2
     ],
     "n_tasks": 4,
     "policies": [
       "naive",
       "heuristic"
     ],
-    "elapsed_seconds": 0.11
+    "elapsed_seconds": 0.09
   },
   "runs": [
     {
@@ -158,6 +159,20 @@
     },
     {
       "policy": "naive",
+      "task_id": "task_easy_delay",
+      "task_name": "The Delay",
+      "difficulty": "easy",
+      "seed": 2,
+      "score": 0.9,
+      "service_level": 1.0,
+      "stockout_days": 0,
+      "max_bullwhip": 9.0,
+      "avg_bullwhip": 7.0,
+      "total_reward": -551.6274,
+      "episode_length": 7
+    },
+    {
+      "policy": "naive",
       "task_id": "task_medium_blockage",
       "task_name": "The Blockage",
       "difficulty": "medium",
@@ -182,6 +197,20 @@
       "max_bullwhip": 1137.77,
       "avg_bullwhip": 198.3182,
       "total_reward": -73067.6913,
+      "episode_length": 14
+    },
+    {
+      "policy": "naive",
+      "task_id": "task_medium_blockage",
+      "task_name": "The Blockage",
+      "difficulty": "medium",
+      "seed": 2,
+      "score": 0.8587,
+      "service_level": 0.7857142857142857,
+      "stockout_days": 3,
+      "max_bullwhip": 658.5919,
+      "avg_bullwhip": 86.0479,
+      "total_reward": -34523.0956,
       "episode_length": 14
     },
     {
@@ -214,6 +243,20 @@
     },
     {
       "policy": "naive",
+      "task_id": "task_cascade_dual_chokepoint",
+      "task_name": "The Cascade",
+      "difficulty": "hard",
+      "seed": 2,
+      "score": 0.5477,
+      "service_level": 0.55,
+      "stockout_days": 9,
+      "max_bullwhip": 658.5919,
+      "avg_bullwhip": 91.9109,
+      "total_reward": -85144.2515,
+      "episode_length": 20
+    },
+    {
+      "policy": "naive",
       "task_id": "task_hard_ghost_protocol",
       "task_name": "Ghost Protocol",
       "difficulty": "hard",
@@ -238,6 +281,20 @@
       "max_bullwhip": 159.7554,
       "avg_bullwhip": 20.0887,
       "total_reward": -137842.571,
+      "episode_length": 30
+    },
+    {
+      "policy": "naive",
+      "task_id": "task_hard_ghost_protocol",
+      "task_name": "Ghost Protocol",
+      "difficulty": "hard",
+      "seed": 2,
+      "score": 0.0682,
+      "service_level": 0.36666666666666664,
+      "stockout_days": 19,
+      "max_bullwhip": 266.6931,
+      "avg_bullwhip": 34.7846,
+      "total_reward": -140693.9556,
       "episode_length": 30
     },
     {
@@ -270,6 +327,20 @@
     },
     {
       "policy": "heuristic",
+      "task_id": "task_easy_delay",
+      "task_name": "The Delay",
+      "difficulty": "easy",
+      "seed": 2,
+      "score": 0.9,
+      "service_level": 1.0,
+      "stockout_days": 0,
+      "max_bullwhip": 9.0,
+      "avg_bullwhip": 7.0,
+      "total_reward": -551.6274,
+      "episode_length": 7
+    },
+    {
+      "policy": "heuristic",
       "task_id": "task_medium_blockage",
       "task_name": "The Blockage",
       "difficulty": "medium",
@@ -294,6 +365,20 @@
       "max_bullwhip": 272.858,
       "avg_bullwhip": 55.5355,
       "total_reward": -16395.0331,
+      "episode_length": 14
+    },
+    {
+      "policy": "heuristic",
+      "task_id": "task_medium_blockage",
+      "task_name": "The Blockage",
+      "difficulty": "medium",
+      "seed": 2,
+      "score": 1.0,
+      "service_level": 1.0,
+      "stockout_days": 0,
+      "max_bullwhip": 17.1294,
+      "avg_bullwhip": 8.7161,
+      "total_reward": -1706.4088,
       "episode_length": 14
     },
     {
@@ -326,6 +411,20 @@
     },
     {
       "policy": "heuristic",
+      "task_id": "task_cascade_dual_chokepoint",
+      "task_name": "The Cascade",
+      "difficulty": "hard",
+      "seed": 2,
+      "score": 0.9,
+      "service_level": 1.0,
+      "stockout_days": 0,
+      "max_bullwhip": 17.1294,
+      "avg_bullwhip": 9.535,
+      "total_reward": -2905.8072,
+      "episode_length": 20
+    },
+    {
+      "policy": "heuristic",
       "task_id": "task_hard_ghost_protocol",
       "task_name": "Ghost Protocol",
       "difficulty": "hard",
@@ -350,6 +449,20 @@
       "max_bullwhip": 92.3845,
       "avg_bullwhip": 16.6428,
       "total_reward": -17432.2129,
+      "episode_length": 30
+    },
+    {
+      "policy": "heuristic",
+      "task_id": "task_hard_ghost_protocol",
+      "task_name": "Ghost Protocol",
+      "difficulty": "hard",
+      "seed": 2,
+      "score": 0.6473,
+      "service_level": 0.9666666666666667,
+      "stockout_days": 1,
+      "max_bullwhip": 50.6354,
+      "avg_bullwhip": 13.1747,
+      "total_reward": -6779.8701,
       "episode_length": 30
     }
   ]
