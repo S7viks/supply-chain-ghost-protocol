@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -22,6 +22,10 @@ from env import SupplyChainEnv
 from models import Action, Observation, Reward
 from openenv.core.env_server.types import State as OpenEnvState
 from tasks import ALL_TASKS, TASK_EASY
+
+_PROJECT_ROOT = Path(__file__).resolve().parent
+_STATIC_DIR = _PROJECT_ROOT / "static"
+_ROLLOUTS_DIR = _PROJECT_ROOT / "rollouts"
 
 app = FastAPI(
     title="Supply Chain Ghost Protocol",
@@ -69,37 +73,13 @@ class StepResponse(BaseModel):
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def root():
-    """Landing page for HF Spaces app tab."""
-    return """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Supply Chain Ghost Protocol</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;
-display:flex;align-items:center;justify-content:center;min-height:100vh}
-.c{max-width:640px;text-align:center;padding:2rem}
-h1{font-size:2rem;margin-bottom:.5rem}
-p{color:#94a3b8;margin-bottom:1.5rem;line-height:1.6}
-.links{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
-a{color:#0f172a;background:#38bdf8;padding:.6rem 1.2rem;border-radius:6px;
-text-decoration:none;font-weight:600;font-size:.9rem}
-a:hover{background:#7dd3fc}
-a.sec{background:transparent;color:#38bdf8;border:1px solid #38bdf8}
-a.sec:hover{background:#1e293b}
-.tag{display:inline-block;background:#1e293b;color:#38bdf8;padding:.2rem .6rem;
-border-radius:4px;font-size:.75rem;margin-bottom:1rem}
-</style></head><body><div class="c">
-<div class="tag">OpenEnv-Compliant</div>
-<h1>Supply Chain Ghost Protocol</h1>
-<p>Semiconductor supply chain crisis management RL environment with
-Bullwhip Effect simulation. 10 tasks across 3 difficulty tiers.</p>
-<div class="links">
-<a href="/docs">API Docs</a>
-<a href="/viewer" class="sec">3D Viewer</a>
-<a href="/health" class="sec">Health</a>
-<a href="/tasks" class="sec">Tasks</a>
-</div></div></body></html>"""
+    """Landing page for HF Spaces app tab (matches 3D viewer visual language)."""
+    index_path = _STATIC_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=500, detail="static/index.html missing")
+    return FileResponse(str(index_path), media_type="text/html")
 
 
 @app.get("/health")
@@ -240,9 +220,6 @@ def close_session(session_id: str) -> Dict[str, str]:
 
 
 # ─── 3D Viewer & Rollout Endpoints ───────────────────────────────────────────
-
-_STATIC_DIR = Path(__file__).resolve().parent / "static"
-_ROLLOUTS_DIR = Path(__file__).resolve().parent / "rollouts"
 
 
 @app.get("/viewer")

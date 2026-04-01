@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supply Chain Ghost Protocol — OpenEnv</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050a19;
+      --bg-card: rgba(8, 14, 32, 0.75);
+      --cyan: #00f0ff;
+      --cyan-dim: rgba(0, 240, 255, 0.15);
+      --green: #00ff88;
+      --text: #e0e8ff;
+      --muted: #6a7a9a;
+      --border: rgba(0, 240, 255, 0.18);
+      --glow: rgba(0, 240, 255, 0.35);
+      --font-d: 'Orbitron', sans-serif;
+      --font-m: 'JetBrains Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      min-height: 100vh;
+      font-family: var(--font-m);
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 20%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb {
+      position: fixed;
+      width: 60vmax;
+      height: 60vmax;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--cyan-dim) 0%, transparent 55%);
+      top: -20%;
+      right: -15%;
+      filter: blur(40px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: clamp(1.5rem, 4vw, 3rem);
+      padding-top: clamp(2rem, 6vh, 4rem);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      background: var(--bg-card);
+      margin-bottom: 1.25rem;
+      backdrop-filter: blur(12px);
+    }
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    h1 {
+      font-family: var(--font-d);
+      font-weight: 900;
+      font-size: clamp(1.75rem, 5vw, 2.75rem);
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.75rem;
+      text-shadow: 0 0 40px rgba(0, 240, 255, 0.2);
+    }
+    h1 span { color: var(--cyan); }
+    .lead {
+      font-size: clamp(0.9rem, 2vw, 1.05rem);
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 52ch;
+      margin-bottom: 2rem;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+    @media (max-width: 520px) {
+      .stats { grid-template-columns: 1fr; }
+    }
+    .stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .stat:hover {
+      border-color: var(--glow);
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.08);
+    }
+    .stat b {
+      font-family: var(--font-d);
+      font-size: 1.5rem;
+      color: var(--cyan);
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .stat small {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+    h2 {
+      font-family: var(--font-d);
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    a.card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 1.25rem 1.35rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-decoration: none;
+      color: var(--text);
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    a.card:hover {
+      transform: translateY(-2px);
+      border-color: var(--glow);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(0, 240, 255, 0.06);
+    }
+    a.card .icon {
+      font-family: var(--font-d);
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: var(--cyan);
+    }
+    a.card strong {
+      font-family: var(--font-d);
+      font-size: 1rem;
+    }
+    a.card span {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    a.card.primary {
+      border-color: rgba(0, 255, 136, 0.35);
+      background: linear-gradient(135deg, rgba(0, 255, 136, 0.06), var(--bg-card));
+    }
+    a.card.primary .icon { color: var(--green); }
+    footer {
+      font-size: 0.75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+      line-height: 1.6;
+    }
+    footer a { color: var(--cyan); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="orb" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="badge">OpenEnv · Meta × Scaler Hackathon</div>
+    <h1>Supply Chain <span>Ghost Protocol</span></h1>
+    <p class="lead">
+      Semiconductor logistics crisis simulator: ports, warehouses, factories, ships in transit,
+      and the <strong style="color: var(--text);">Bullwhip Effect</strong>. Train and evaluate agents via the standard
+      <code style="color: var(--cyan);">reset</code> / <code style="color: var(--cyan);">step</code> / <code style="color: var(--cyan);">state</code> API.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><b>10</b><small>Graded tasks</small></div>
+      <div class="stat"><b>3</b><small>Difficulty tiers</small></div>
+      <div class="stat"><b>API</b><small>FastAPI + Pydantic v2</small></div>
+    </div>
+
+    <h2>Launch</h2>
+    <div class="cards">
+      <a class="card primary" href="/docs">
+        <span class="icon">// REST</span>
+        <strong>Swagger UI</strong>
+        <span>Interactive API — reset, step, list tasks, session state.</span>
+      </a>
+      <a class="card primary" href="/viewer">
+        <span class="icon">// VIS</span>
+        <strong>3D Rollout Viewer</strong>
+        <span>Load recorded rollouts and inspect supply network geometry.</span>
+      </a>
+      <a class="card" href="/redoc">
+        <span class="icon">// SPEC</span>
+        <strong>ReDoc</strong>
+        <span>Alternate OpenAPI documentation layout.</span>
+      </a>
+      <a class="card" href="/openapi.json">
+        <span class="icon">// JSON</span>
+        <strong>OpenAPI schema</strong>
+        <span>Machine-readable contract for tooling and validators.</span>
+      </a>
+      <a class="card" href="/tasks">
+        <span class="icon">// DATA</span>
+        <strong>Task catalogue</strong>
+        <span>JSON list of all task IDs, thresholds, and descriptions.</span>
+      </a>
+      <a class="card" href="/health">
+        <span class="icon">// PING</span>
+        <strong>Health</strong>
+        <span>Liveness probe for orchestration and HF Spaces.</span>
+      </a>
+    </div>
+
+    <h2>Compliance</h2>
+    <div class="cards">
+      <a class="card" href="/metadata">
+        <span class="icon">// META</span>
+        <strong>Metadata</strong>
+        <span>Name, description, version for OpenEnv runtime checks.</span>
+      </a>
+      <a class="card" href="/schema">
+        <span class="icon">// TYPES</span>
+        <strong>JSON schemas</strong>
+        <span>Action, observation, and state models.</span>
+      </a>
+    </div>
+
+    <footer>
+      Built for <strong>OpenEnv</strong> — environment ID <code style="color: var(--cyan);">supply-chain-ghost-protocol</code>.
+      Source and README live in the linked repository; inference baseline via <code style="color: var(--cyan);">inference.py</code>.
+    </footer>
+  </div>
+</body>
+</html>
