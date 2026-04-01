@@ -1,0 +1,22 @@
+# Supply Chain Ghost Protocol — Dependencies
+# Pinned for reproducibility on 2 vCPU / 8GB RAM
+
+# OpenEnv spec
+openenv-core>=0.1.0
+
+# Type safety
+pydantic>=2.5.0,<3.0.0
+
+# LLM inference (mandatory: OpenAI client)
+openai>=1.12.0
+
+# HTTP server (Hugging Face Spaces)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Numerics
+numpy>=1.26.0,<2.0.0
+
+# Dev / testing
+pytest>=7.4.0
+httpx>=0.26.0   # For FastAPI test client

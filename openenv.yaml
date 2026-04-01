@@ -1,0 +1,208 @@
+## openenv.yaml — Supply Chain Ghost Protocol
+## OpenEnv metadata spec for automated validation
+
+name: supply-chain-ghost-protocol
+version: "1.0.0"
+description: >
+  A global semiconductor logistics simulation where an AI agent manages shipments
+  across a network of ports, warehouses, and factories. The environment simulates
+  real-world supply chain disruptions (port blockages, canal closures) that produce
+  the "Bullwhip Effect" — where delays at one node amplify demand volatility upstream.
+  The agent must balance stock-out risk against excess inventory holding costs across
+  a 3-tier supply network under cascading failure conditions.
+
+author: "Ch Sai Sathvik"
+tags:
+  - supply-chain
+  - logistics
+  - crisis-management
+  - bullwhip-effect
+  - semiconductor
+  - operations-research
+  - openenv
+
+domain: logistics
+real_world_task: true
+
+# ─────────────────────────────────────────────
+# OpenEnv API Compliance
+# ─────────────────────────────────────────────
+api:
+  step: true
+  reset: true
+  state: true
+  typed_models: true
+  pydantic_version: "2.x"
+
+entry_point: "env:SupplyChainEnv"
+
+# ─────────────────────────────────────────────
+# Observation Space
+# ─────────────────────────────────────────────
+observation_space:
+  type: structured
+  model: "models.Observation"
+  fields:
+    day:
+      type: int
+      range: [0, 30]
+      description: Current simulation day
+    episode_remaining_days:
+      type: int
+      range: [0, 30]
+    inventory_levels:
+      type: dict
+      key: node_id (str)
+      value: NodeInventory
+      nodes: [PORT_SINGAPORE, PORT_ROTTERDAM, PORT_SHANGHAI, PORT_BUSAN, PORT_HAMBURG,
+              WH_ASIA_HUB, WH_EUROPE_HUB, FAC_BERLIN, FAC_TAIPEI, FAC_AUSTIN]
+    transit_queue:
+      type: list[Ship]
+      description: All vessels currently at sea
+    port_status:
+      type: dict
+      key: port_id (str)
+      values: [open, blocked, congested]
+    daily_burn_rate:
+      type: dict
+      key: factory_id (str)
+      value: FactoryDemand
+    bullwhip_index:
+      type: float
+      range: [0.0, inf]
+      description: Var(Orders)/Var(Demand) over rolling 7-day window. >1 = amplification.
+    network_service_level:
+      type: float
+      range: [0.0, 1.0]
+      description: Fraction of factory demand fulfilled on-time (cumulative)
+    total_holding_cost_today:
+      type: float
+      description: Aggregate daily holding cost across all nodes
+    active_shocks:
+      type: list[str]
+      description: Human-readable list of current disruption events
+
+# ─────────────────────────────────────────────
+# Action Space
+# ─────────────────────────────────────────────
+action_space:
+  type: structured
+  model: "models.Action"
+  actions:
+    reroute_ship:
+      description: Redirect a vessel in transit to a different destination port
+      parameters:
+        ship_id: str  # Vessel identifier (e.g. "V-003")
+        new_port: str  # Target port from valid port set
+      cost: $15,000 flat + 1-2 day delay
+    expedite_order:
+      description: Rush-order inventory between two nodes at 2x standard cost
+      parameters:
+        source_node: str
+        destination_node: str
+        expedite_volume: float  # Units to move
+      cost: 2x standard shipping rate ($10/unit)
+    adjust_buffer:
+      description: Purchase inventory to reach a target stock level at a node
+      parameters:
+        target_node: str
+        target_inventory: float  # Desired stock level
+      cost: Standard rate ($5/unit), delivered in 2 days
+    noop:
+      description: Take no action this timestep
+
+# ─────────────────────────────────────────────
+# Reward Space
+# ─────────────────────────────────────────────
+reward_space:
+  type: structured
+  model: "models.Reward"
+  dense: true
+  range: [-inf, 250]
+  components:
+    service_level_bonus:
+      description: +200 * service_rate per day
+      signal: positive, proportional to demand fulfilment
+    stockout_penalty:
+      description: -$500 * unfulfilled_units * 0.01 per day
+      signal: strongly negative; asymmetrically larger than holding cost
+    holding_cost_penalty:
+      description: -$0.50 * total_units * 0.01 per day
+      signal: mildly negative; discourages excess inventory
+    reroute_cost_penalty:
+      description: -$15,000 * 0.01 per reroute event
+      signal: negative; discourages unnecessary reroutes
+    expedite_cost_penalty:
+      description: -2x * volume * $5 * 0.01 per expedite
+      signal: negative; discourages panic ordering
+    bullwhip_penalty:
+      description: -(bullwhip_index - 1.5) * 20 when index > 1.5
+      signal: negative; discourages order amplification
+    stability_bonus:
+      description: +50 per day all factories have non-zero stock
+      signal: positive; encourages consistent operations
+
+# ─────────────────────────────────────────────
+# Tasks
+# ─────────────────────────────────────────────
+tasks:
+  - id: task_easy_delay
+    name: "The Delay"
+    difficulty: easy
+    episode_length: 7
+    success_threshold: 0.7
+    description: >
+      Single ship delayed 48h. Agent must reroute to secondary port within 1 day
+      to prevent factory stock-out. Tests basic routing decision-making.
+
+  - id: task_medium_blockage
+    name: "The Blockage"
+    difficulty: medium
+    episode_length: 14
+    success_threshold: 0.6
+    description: >
+      PORT_SINGAPORE (largest Asia-Pacific hub) closes for 5 days. Agent must
+      redistribute shipments and manage warehouse inventory to maintain ≥0.85
+      service level. Tests multi-step planning under capacity constraint.
+
+  - id: task_hard_ghost_protocol
+    name: "Ghost Protocol"
+    difficulty: hard
+    episode_length: 30
+    success_threshold: 0.5
+    description: >
+      Cascading multi-port failures + random demand spikes. Agent must maintain
+      ≥0.90 network service level with Bullwhip Index < 2.0. Any stock-out event
+      applies a -30% score penalty. Tests long-horizon crisis management.
+
+# ─────────────────────────────────────────────
+# Infrastructure
+# ─────────────────────────────────────────────
+infrastructure:
+  docker: true
+  huggingface_space: true
+  inference_script: inference.py
+  llm_client: openai  # Mandatory per hackathon spec
+  max_inference_runtime_minutes: 20
+  resource_constraints:
+    vcpu: 2
+    memory_gb: 8
+
+dependencies:
+  python: ">=3.10"
+  packages:
+    - pydantic>=2.0
+    - openai>=1.0
+    - numpy>=1.24
+    - fastapi>=0.100
+    - uvicorn>=0.23
+    - openenv-core
+
+# ─────────────────────────────────────────────
+# Validation
+# ─────────────────────────────────────────────
+validation:
+  openenv_validate: true
+  baseline_reproducible: true
+  graders_deterministic: true
+  grader_score_range: [0.0, 1.0]
