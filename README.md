@@ -246,9 +246,9 @@ Scores produced by `Qwen/Qwen2.5-72B-Instruct` via HF Router (seed=42):
 
 | Task | Difficulty | Score | Pass/Fail |
 |------|-----------|-------|-----------|
-| The Delay | Easy | ~0.72 | ✅ PASS |
-| The Blockage | Medium | ~0.58 | ⚠️ MARGINAL |
-| Ghost Protocol | Hard | ~0.31 | ❌ FAIL |
+| The Delay | Easy | 1.0000 | ✅ PASS |
+| The Blockage | Medium | 0.8415 | ✅ PASS |
+| Ghost Protocol | Hard | 0.0000 | ❌ FAIL |
 
 The Hard task genuinely challenges frontier models — multiple simultaneous failures with stochastic demand require multi-step lookahead that pure reactive agents lack.
 
