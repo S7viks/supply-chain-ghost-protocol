@@ -1,0 +1,42 @@
+{
+  "task_easy_delay": {
+    "task": "task_easy_delay",
+    "difficulty": "easy",
+    "score": 1.0,
+    "success": true,
+    "metrics": {
+      "service_level": 1.0,
+      "rerouted_ship": true
+    },
+    "failure_reasons": []
+  },
+  "task_medium_blockage": {
+    "task": "task_medium_blockage",
+    "difficulty": "medium",
+    "score": 0.8415,
+    "success": true,
+    "metrics": {
+      "service_level": 0.8654,
+      "idle_days": 3,
+      "idle_fraction": 0.2143
+    },
+    "failure_reasons": []
+  },
+  "task_hard_ghost_protocol": {
+    "task": "task_hard_ghost_protocol",
+    "difficulty": "hard",
+    "score": 0.0,
+    "success": false,
+    "metrics": {
+      "service_level": 0.4984,
+      "stockout_events": 17,
+      "bullwhip_violation_days": 29,
+      "service_bonus_awarded": false
+    },
+    "failure_reasons": [
+      "CRITICAL: 17 stock-out event(s) -- 60% penalty applied",
+      "Service level 49.84% below 90% target",
+      "Bullwhip Index exceeded 2.0 for 29 days"
+    ]
+  }
+}
