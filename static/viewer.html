@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ghost Protocol — Supply Chain Viewer</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <style>
 :root {
     --bg-deep: #050a19;
@@ -27,6 +28,28 @@
 html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-mono); }
 canvas { display: block; }
 #renderer-container { position: fixed; inset: 0; z-index: 0; }
+#map-container {
+    position: fixed; inset: 0; z-index: 2; display: none;
+    width: 100%; height: 100%;
+}
+body.map-mode #renderer-container { visibility: hidden; pointer-events: none; }
+body.map-mode #map-container { display: block; }
+.leaflet-container { background: var(--bg-deep); font-family: var(--font-mono); }
+.leaflet-control-attribution { font-size: 9px; max-width: 60%; }
+.view-toggle {
+    position: fixed; z-index: 25; top: 18px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-display); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 8px 16px; cursor: pointer;
+    background: var(--bg-panel); color: var(--accent-cyan);
+    border: 1px solid var(--border-subtle); border-radius: 6px;
+    backdrop-filter: blur(12px); transition: border-color 0.2s, box-shadow 0.2s;
+}
+.view-toggle:hover { border-color: var(--border-glow); box-shadow: 0 0 20px rgba(0,240,255,0.12); }
+#tooltip .tt-maps {
+    display: block; margin-top: 8px; font-size: 10px; color: var(--accent-cyan);
+    text-decoration: none; letter-spacing: 0.05em;
+}
+#tooltip .tt-maps:hover { text-decoration: underline; }
 
 .hud-panel {
     position: fixed; z-index: 10;
@@ -409,6 +432,8 @@ input[type="range"]::-moz-range-thumb {
 <body>
 
 <div id="renderer-container"></div>
+<div id="map-container" role="application" aria-label="World map"></div>
+<button type="button" id="btn-view-toggle" class="view-toggle">2D world map</button>
 
 <div id="panel-info" class="hud-panel">
     <div class="logo">Ghost Protocol</div>
@@ -476,6 +501,7 @@ input[type="range"]::-moz-range-thumb {
     <div class="tt-row"><span class="tt-label">Utilization</span><span class="tt-val" id="tt-util"></span></div>
     <div class="tt-row"><span class="tt-label">Status</span><span class="tt-val" id="tt-status"></span></div>
     <div class="tt-bar-wrap"><div class="tt-bar-fill" id="tt-bar"></div></div>
+    <a class="tt-maps" id="tt-maps" href="#" target="_blank" rel="noopener noreferrer" style="display:none">Open in Google Maps</a>
 </div>
 
 <div id="action-toast"></div>
@@ -484,6 +510,8 @@ input[type="range"]::-moz-range-thumb {
 
 <button id="load-btn">LOAD ROLLOUT</button>
 <input type="file" id="file-input" accept=".json" style="display:none">
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <div id="upload-zone">
     <div class="upload-box" id="drop-box">
@@ -745,27 +773,39 @@ scene.add(rimLight);
     scene.add(new THREE.Points(geo, mat));
 }
 
-/* ───────── globe ───────── */
+/* ───────── globe (textured Earth + atmosphere) ───────── */
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
 {
-    const wireGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 32);
-    const wireMat = new THREE.MeshBasicMaterial({
-        color: 0x0a2a3f,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.22,
-    });
-    globeGroup.add(new THREE.Mesh(wireGeo, wireMat));
-
-    const solidGeo = new THREE.SphereGeometry(GLOBE_RADIUS - 0.5, 64, 32);
-    const solidMat = new THREE.MeshStandardMaterial({
-        color: 0x040c1a,
-        roughness: 0.9,
-        metalness: 0.1,
-    });
-    globeGroup.add(new THREE.Mesh(solidGeo, solidMat));
+    const EARTH_MAP_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/r162/examples/textures/planets/earth_atmos_2048.jpg';
+    const texLoader = new THREE.TextureLoader();
+    texLoader.setCrossOrigin('anonymous');
+    texLoader.load(
+        EARTH_MAP_URL,
+        (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            const maxA = renderer.capabilities.getMaxAnisotropy();
+            tex.anisotropy = Math.min(8, maxA);
+            const geo = new THREE.SphereGeometry(GLOBE_RADIUS - 0.5, 96, 48);
+            const mat = new THREE.MeshPhongMaterial({
+                map: tex,
+                specular: new THREE.Color(0x222233),
+                shininess: 12,
+            });
+            globeGroup.add(new THREE.Mesh(geo, mat));
+        },
+        undefined,
+        () => {
+            const geo = new THREE.SphereGeometry(GLOBE_RADIUS - 0.5, 64, 32);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x0a1628,
+                roughness: 0.85,
+                metalness: 0.08,
+            });
+            globeGroup.add(new THREE.Mesh(geo, mat));
+        },
+    );
 
     const atmosVert = `
         varying vec3 vNormal;
@@ -795,7 +835,7 @@ scene.add(globeGroup);
 
 /* latitude / longitude grid */
 {
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x0e2a40, transparent: true, opacity: 0.18 });
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x4a90a8, transparent: true, opacity: 0.08 });
     for (let lat = -60; lat <= 60; lat += 30) {
         const pts = [];
         for (let lng = 0; lng <= 360; lng += 2) pts.push(latLngToVec3(lat, lng - 180, GLOBE_RADIUS + 0.3));
@@ -999,6 +1039,99 @@ function buildDisruptions(step) {
 
 /* ───────── HUD updates ───────── */
 const $  = id => document.getElementById(id);
+
+function hexColorWeb(n) {
+    return '#' + n.toString(16).padStart(6, '0');
+}
+
+let leafletMap = null;
+let mapOverlayGroup = null;
+
+function ensureLeafletMap() {
+    const Lf = window.L;
+    if (leafletMap || !Lf) return;
+    leafletMap = Lf.map('map-container', { worldCopyJump: true }).setView([18, 8], 2);
+    Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(leafletMap);
+    mapOverlayGroup = Lf.layerGroup().addTo(leafletMap);
+    if (state.rollout) syncMapFromStep(state.rollout.steps[state.stepIndex]);
+}
+
+function syncMapFromStep(step) {
+    const Lf = window.L;
+    if (!leafletMap || !mapOverlayGroup || !step || !Lf) return;
+    mapOverlayGroup.clearLayers();
+    for (const link of SUPPLY_LINKS) {
+        const a = NODES[link.from];
+        const b = NODES[link.to];
+        if (!a || !b) continue;
+        Lf.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
+            color: '#00d4e8',
+            weight: 1.2,
+            opacity: 0.3,
+            dashArray: '6 8',
+        }).addTo(mapOverlayGroup);
+    }
+    for (const [id, node] of Object.entries(NODES)) {
+        const inv = step.inventory?.[id];
+        const status = inv?.status || 'open';
+        const statusHex = STATUS_COLORS[status] || STATUS_COLORS.open;
+        const baseHex = node.type === 'port' ? statusHex : TYPE_COLORS[node.type];
+        const fill = hexColorWeb(baseHex);
+        const radius = node.type === 'port' ? 7 : node.type === 'warehouse' ? 6 : 5;
+        const m = Lf.circleMarker([node.lat, node.lng], {
+            radius,
+            color: '#00f0ff',
+            weight: 1,
+            fillColor: fill,
+            fillOpacity: inv ? (status === 'blocked' ? 0.95 : 0.82) : 0.45,
+            opacity: 0.9,
+        }).addTo(mapOverlayGroup);
+        const stock = inv
+            ? `${inv.current_stock.toLocaleString()} / ${inv.capacity.toLocaleString()}`
+            : '—';
+        m.bindPopup(
+            `<b>${node.label}</b><br>${stock}<br><a href="https://www.google.com/maps?q=${node.lat},${node.lng}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`,
+        );
+    }
+    if (step.ships) {
+        for (const ship of step.ships) {
+            if (ship.status === 'arrived') continue;
+            const fromNode = NODES[ship.origin];
+            const toNode = NODES[ship.destination];
+            if (!fromNode || !toNode) continue;
+            const t = Math.max(0, Math.min(1, 1 - (ship.eta / 4)));
+            const lat = fromNode.lat + (toNode.lat - fromNode.lat) * t;
+            const lng = fromNode.lng + (toNode.lng - fromNode.lng) * t;
+            const col = ship.status === 'delayed' ? '#ffaa00' : '#00f0ff';
+            Lf.circleMarker([lat, lng], {
+                radius: 4,
+                color: col,
+                weight: 1,
+                fillColor: col,
+                fillOpacity: 0.92,
+            }).addTo(mapOverlayGroup);
+        }
+    }
+}
+
+$('btn-view-toggle').addEventListener('click', () => {
+    const on = !document.body.classList.contains('map-mode');
+    document.body.classList.toggle('map-mode', on);
+    $('btn-view-toggle').textContent = on ? '3D globe' : '2D world map';
+    if (on) {
+        ensureLeafletMap();
+        requestAnimationFrame(() => {
+            if (leafletMap) {
+                leafletMap.invalidateSize();
+                if (state.rollout) syncMapFromStep(state.rollout.steps[state.stepIndex]);
+            }
+        });
+    }
+});
+
 const slider = $('timeline-slider');
 
 function updateHUD(step, rollout) {
@@ -1133,6 +1266,15 @@ renderer.domElement.addEventListener('pointermove', e => {
         const c = fillColor(ratio);
         bar.style.background = '#' + c.getHexString();
 
+        const nodeLoc = NODES[data.nodeId];
+        const mapsA = $('tt-maps');
+        if (nodeLoc) {
+            mapsA.href = `https://www.google.com/maps?q=${nodeLoc.lat},${nodeLoc.lng}`;
+            mapsA.style.display = 'block';
+        } else {
+            mapsA.style.display = 'none';
+        }
+
         tooltip.style.display = 'block';
         tooltip.style.left = (e.clientX + 16) + 'px';
         tooltip.style.top  = (e.clientY - 8) + 'px';
@@ -1143,6 +1285,7 @@ renderer.domElement.addEventListener('pointermove', e => {
     } else {
         hoveredNode = null;
         tooltip.style.display = 'none';
+        $('tt-maps').style.display = 'none';
     }
 });
 
@@ -1179,6 +1322,7 @@ function goToStep(idx) {
     buildShips(step);
     buildDisruptions(step);
     updateHUD(step, state.rollout);
+    syncMapFromStep(step);
 }
 
 /* ───────── playback ───────── */
@@ -1287,6 +1431,9 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
+    if (leafletMap && document.body.classList.contains('map-mode')) {
+        leafletMap.invalidateSize();
+    }
 });
 
 /* ───────── init ───────── */
