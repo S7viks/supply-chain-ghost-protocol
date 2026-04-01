@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -172,8 +172,24 @@ def list_tasks() -> Dict[str, Any]:
 
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(request: ResetRequest) -> ResetResponse:
-    """Initialise a new episode. Returns session_id and initial observation."""
+async def reset(http_request: Request) -> ResetResponse:
+    """Initialise a new episode. Returns session_id and initial observation.
+
+    Accepts a JSON body ``{task_id?, seed?}`` or an **empty body** (OpenEnv
+    automated validators often POST with no body; defaults apply).
+    """
+    raw = await http_request.body()
+    if not raw.strip():
+        request = ResetRequest()
+    else:
+        try:
+            data = json.loads(raw.decode("utf-8"))
+            if not isinstance(data, dict):
+                data = {}
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            data = {}
+        request = ResetRequest(**data)
+
     task = next((t for t in ALL_TASKS if t.task_id == request.task_id), TASK_EASY)
     env = task.build_env(seed=request.seed or 42)
     obs = env.reset()
