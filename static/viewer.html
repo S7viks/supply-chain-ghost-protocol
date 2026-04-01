@@ -33,6 +33,8 @@ canvas { display: block; }
     width: 100%; height: 100%;
 }
 body.map-mode #renderer-container { visibility: hidden; pointer-events: none; }
+/* Children do not inherit pointer-events; stop the WebGL canvas from capturing hits. */
+body.map-mode #renderer-container canvas { pointer-events: none; }
 body.map-mode #map-container { display: block; }
 .leaflet-container { background: var(--bg-deep); font-family: var(--font-mono); }
 .leaflet-control-attribution { font-size: 9px; max-width: 60%; }
@@ -1040,6 +1042,10 @@ function buildDisruptions(step) {
 /* ───────── HUD updates ───────── */
 const $  = id => document.getElementById(id);
 
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2(-9, -9);
+let hoveredNode = null;
+
 function hexColorWeb(n) {
     return '#' + n.toString(16).padStart(6, '0');
 }
@@ -1047,16 +1053,26 @@ function hexColorWeb(n) {
 let leafletMap = null;
 let mapOverlayGroup = null;
 
+/** @returns {boolean} true if a map instance is ready (existing or newly created) */
 function ensureLeafletMap() {
     const Lf = window.L;
-    if (leafletMap || !Lf) return;
-    leafletMap = Lf.map('map-container', { worldCopyJump: true }).setView([18, 8], 2);
-    Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(leafletMap);
-    mapOverlayGroup = Lf.layerGroup().addTo(leafletMap);
-    if (state.rollout) syncMapFromStep(state.rollout.steps[state.stepIndex]);
+    if (leafletMap) return true;
+    if (typeof Lf === 'undefined' || typeof Lf.map !== 'function') return false;
+    try {
+        leafletMap = Lf.map('map-container', { worldCopyJump: true }).setView([18, 8], 2);
+        Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }).addTo(leafletMap);
+        mapOverlayGroup = Lf.layerGroup().addTo(leafletMap);
+        if (state.rollout) syncMapFromStep(state.rollout.steps[state.stepIndex]);
+    } catch (err) {
+        console.warn('Leaflet map init failed', err);
+        leafletMap = null;
+        mapOverlayGroup = null;
+        return false;
+    }
+    return true;
 }
 
 function syncMapFromStep(step) {
@@ -1081,12 +1097,18 @@ function syncMapFromStep(step) {
         const baseHex = node.type === 'port' ? statusHex : TYPE_COLORS[node.type];
         const fill = hexColorWeb(baseHex);
         const radius = node.type === 'port' ? 7 : node.type === 'warehouse' ? 6 : 5;
+        let fillOp = 0.45;
+        if (inv) {
+            if (status === 'blocked' || status === 'closed') fillOp = 0.95;
+            else if (status === 'congested') fillOp = 0.88;
+            else fillOp = 0.82;
+        }
         const m = Lf.circleMarker([node.lat, node.lng], {
             radius,
             color: '#00f0ff',
             weight: 1,
             fillColor: fill,
-            fillOpacity: inv ? (status === 'blocked' ? 0.95 : 0.82) : 0.45,
+            fillOpacity: fillOp,
             opacity: 0.9,
         }).addTo(mapOverlayGroup);
         const stock = inv
@@ -1118,18 +1140,29 @@ function syncMapFromStep(step) {
 }
 
 $('btn-view-toggle').addEventListener('click', () => {
-    const on = !document.body.classList.contains('map-mode');
-    document.body.classList.toggle('map-mode', on);
-    $('btn-view-toggle').textContent = on ? '3D globe' : '2D world map';
-    if (on) {
-        ensureLeafletMap();
-        requestAnimationFrame(() => {
-            if (leafletMap) {
-                leafletMap.invalidateSize();
-                if (state.rollout) syncMapFromStep(state.rollout.steps[state.stepIndex]);
-            }
-        });
+    if (document.body.classList.contains('map-mode')) {
+        document.body.classList.remove('map-mode');
+        $('btn-view-toggle').textContent = '2D world map';
+        return;
     }
+    if (!ensureLeafletMap()) {
+        const toast = $('action-toast');
+        toast.textContent = '2D map unavailable (Leaflet did not load). Check network or blockers.';
+        toast.classList.add('visible');
+        setTimeout(() => toast.classList.remove('visible'), 3500);
+        return;
+    }
+    document.body.classList.add('map-mode');
+    $('btn-view-toggle').textContent = '3D globe';
+    hoveredNode = null;
+    $('tooltip').style.display = 'none';
+    $('tt-maps').style.display = 'none';
+    requestAnimationFrame(() => {
+        if (leafletMap) {
+            leafletMap.invalidateSize();
+            if (state.rollout) syncMapFromStep(state.rollout.steps[state.stepIndex]);
+        }
+    });
 });
 
 const slider = $('timeline-slider');
@@ -1237,11 +1270,14 @@ function updateNodes(step) {
 }
 
 /* ───────── raycasting / tooltip ───────── */
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2(-9, -9);
-let hoveredNode = null;
-
 renderer.domElement.addEventListener('pointermove', e => {
+    if (document.body.classList.contains('map-mode')) {
+        hoveredNode = null;
+        $('tooltip').style.display = 'none';
+        $('tt-maps').style.display = 'none';
+        return;
+    }
+
     pointer.x =  (e.clientX / window.innerWidth)  * 2 - 1;
     pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
