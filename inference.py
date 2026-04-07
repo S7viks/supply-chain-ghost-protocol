@@ -46,20 +46,18 @@ FALLBACK_MODELS = [
 if not API_KEY:
     import sys
     print(
-        "FATAL: HF_TOKEN (or API_KEY) is not set. "
-        "Export it before running inference:\n"
-        "  export HF_TOKEN='hf_...'\n"
-        "On HF Spaces, add it under Settings -> Repository secrets.",
+        "WARN: HF_TOKEN (or API_KEY) is not set. "
+        "LLM calls will be skipped and the heuristic baseline will be used.",
         file=sys.stderr,
+        flush=True,
     )
-    sys.exit(1)
 
 MAX_STEPS   = 30
 TEMPERATURE = 0.1
 MAX_TOKENS  = 512
 SEED        = 42
 
-client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if API_KEY else None
 
 _active_model = MODEL_NAME
 
@@ -165,7 +163,12 @@ def parse_action(response_text: str) -> Action:
         data = json.loads(text)
         return Action(**data)
     except Exception as exc:
-        print(f"[WARN] Action parse failed: {exc}. Defaulting to noop.")
+        import sys
+        print(
+            f"[WARN] Action parse failed: {exc}. Defaulting to noop.",
+            file=sys.stderr,
+            flush=True,
+        )
         return Action(action_type=ActionType.NOOP)
 
 
@@ -220,6 +223,8 @@ class _AgentMemory:
 
 def _llm_call(model: str, messages: List[Dict[str, str]]) -> str:
     """Single LLM completion call. Returns the response text or raises."""
+    if client is None:
+        raise RuntimeError("HF_TOKEN/API_KEY missing; LLM disabled")
     response = client.chat.completions.create(
         model=model,
         messages=messages,
@@ -265,17 +270,28 @@ def make_llm_agent(task: Task) -> Any:
                 action = parse_action(action_text)
                 mem.append(user_message, action.model_dump_json())
                 if model != _active_model:
-                    print(f"[MODEL] Switched to {model}")
+                    import sys
+                    print(f"[MODEL] Switched to {model}", file=sys.stderr, flush=True)
                     _active_model = model
                 return action
             except Exception as exc:
                 status = getattr(exc, "status_code", None)
                 if status in (401, 402, 429):
                     continue
-                print(f"[ERROR] {model}: {type(exc).__name__}: {exc}")
+                import sys
+                print(
+                    f"[ERROR] {model}: {type(exc).__name__}: {exc}",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 continue
 
-        print("[FALLBACK] All models exhausted, using heuristic agent")
+        import sys
+        print(
+            "[FALLBACK] All models exhausted, using heuristic agent",
+            file=sys.stderr,
+            flush=True,
+        )
         return _heuristic(obs, prev_step, _task or task)
 
     return llm_agent
@@ -302,6 +318,11 @@ def run_all_tasks(
         if task_filter and task.difficulty != task_filter:
             continue
 
+        print(
+            f"[START] task={task.task_id} name={task.name!r} difficulty={task.difficulty} "
+            f"episode_length={task.episode_length} seed={SEED}",
+            flush=True,
+        )
         print(f"\n[TASK] {task.name} ({task.difficulty.upper()}) -- {task.episode_length} days")
         print(f"       {task.description[:120]}...")
 
@@ -313,6 +334,20 @@ def run_all_tasks(
             verbose=verbose,
         )
 
+        for i, step in enumerate(trajectory, start=1):
+            print(
+                "[STEP] "
+                f"task={task.task_id} "
+                f"step={i} "
+                f"day={step.get('day')} "
+                f"action={step.get('action_type')} "
+                f"reward={step.get('reward_total')} "
+                f"service_level={step.get('service_level')} "
+                f"bullwhip_index={step.get('bullwhip_index')} "
+                f"stockout={step.get('any_factory_stockout')}",
+                flush=True,
+            )
+
         status = "PASS" if result.success else "FAIL"
         print(f"\n{status} | Score: {result.score:.4f} (threshold: {task.success_threshold})")
         print(f"Metrics: {json.dumps(result.metrics, indent=2)}")
@@ -320,6 +355,12 @@ def run_all_tasks(
             print("Failure reasons:")
             for reason in result.failure_reasons:
                 print(f"  - {reason}")
+
+        print(
+            f"[END] task={task.task_id} score={result.score:.4f} "
+            f"success={str(result.success).lower()} steps={len(trajectory)}",
+            flush=True,
+        )
 
         results[task.task_id] = {
             "task": task.task_id,
