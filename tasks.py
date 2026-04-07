@@ -33,6 +33,19 @@ class TaskResult:
     metrics: Dict[str, Any] = field(default_factory=dict)
     failure_reasons: List[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        # Hackathon Phase-2 requires scores strictly within (0, 1).
+        # Enforce it centrally so individual graders can stay simple.
+        # NOTE: scores are printed to 4 decimals in stdout, so eps must be >= 1e-4
+        # to avoid rounding to 0.0000 / 1.0000.
+        eps = 1e-4
+        if not isinstance(self.score, (int, float)):
+            raise TypeError(f"TaskResult.score must be float-like, got {type(self.score).__name__}")
+        if self.score <= 0.0:
+            self.score = eps
+        elif self.score >= 1.0:
+            self.score = 1.0 - eps
+
 
 @dataclass
 class Task:

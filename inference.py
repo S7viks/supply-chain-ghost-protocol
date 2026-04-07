@@ -323,7 +323,7 @@ def run_all_tasks(
 
     if not tasks_to_run:
         _struct_out("[START] task=_none")
-        _struct_out("[END] task=_none score=0.0 steps=0")
+        _struct_out("[END] task=_none score=0.0001 steps=0")
         return results
 
     for task in tasks_to_run:
