@@ -42,17 +42,20 @@ def _struct_out(line: str) -> None:
 # ─── Configuration ───────────────────────────────────────────────────────────
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-API_KEY      = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
-MODEL_NAME   = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")  # no default (per checklist)
+
+# Optional — only needed if you use from_docker_image() in the sample flow.
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 FALLBACK_MODELS = [
     os.getenv("FALLBACK_MODEL", "google/gemma-3-27b-it"),
     "Qwen/Qwen2.5-7B-Instruct",
     "meta-llama/Llama-3.1-8B-Instruct",
 ]
 
-if not API_KEY:
+if not HF_TOKEN:
     print(
-        "WARN: HF_TOKEN (or API_KEY) is not set. "
+        "WARN: HF_TOKEN is not set. "
         "LLM calls will be skipped and the heuristic baseline will be used.",
         file=sys.stderr,
         flush=True,
@@ -63,7 +66,7 @@ TEMPERATURE = 0.1
 MAX_TOKENS  = 512
 SEED        = 42
 
-client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if API_KEY else None
+client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN) if HF_TOKEN else None
 
 _active_model = MODEL_NAME
 
