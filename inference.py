@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import textwrap
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -30,6 +31,12 @@ from rollout import HeuristicAgent
 from tasks import ALL_TASKS, Task, run_task
 
 _heuristic = HeuristicAgent()
+
+
+def _struct_out(line: str) -> None:
+    """Emit Phase-2 required markers on the real stdout stream (not stderr)."""
+    sys.stdout.write(line + "\n")
+    sys.stdout.flush()
 
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -44,7 +51,6 @@ FALLBACK_MODELS = [
 ]
 
 if not API_KEY:
-    import sys
     print(
         "WARN: HF_TOKEN (or API_KEY) is not set. "
         "LLM calls will be skipped and the heuristic baseline will be used.",
@@ -163,7 +169,6 @@ def parse_action(response_text: str) -> Action:
         data = json.loads(text)
         return Action(**data)
     except Exception as exc:
-        import sys
         print(
             f"[WARN] Action parse failed: {exc}. Defaulting to noop.",
             file=sys.stderr,
@@ -270,7 +275,6 @@ def make_llm_agent(task: Task) -> Any:
                 action = parse_action(action_text)
                 mem.append(user_message, action.model_dump_json())
                 if model != _active_model:
-                    import sys
                     print(f"[MODEL] Switched to {model}", file=sys.stderr, flush=True)
                     _active_model = model
                 return action
@@ -278,7 +282,6 @@ def make_llm_agent(task: Task) -> Any:
                 status = getattr(exc, "status_code", None)
                 if status in (401, 402, 429):
                     continue
-                import sys
                 print(
                     f"[ERROR] {model}: {type(exc).__name__}: {exc}",
                     file=sys.stderr,
@@ -286,7 +289,6 @@ def make_llm_agent(task: Task) -> Any:
                 )
                 continue
 
-        import sys
         print(
             "[FALLBACK] All models exhausted, using heuristic agent",
             file=sys.stderr,
@@ -307,24 +309,26 @@ def run_all_tasks(
     results: Dict[str, Any] = {}
     all_pass = True
 
-    print("=" * 60)
-    print("Supply Chain Ghost Protocol -- Baseline Inference")
-    print(f"Model:     {MODEL_NAME}")
-    print(f"Fallbacks: {', '.join(FALLBACK_MODELS)}")
-    print(f"API:       {API_BASE_URL}")
-    print("=" * 60)
+    tasks_to_run = [t for t in ALL_TASKS if not task_filter or t.difficulty == task_filter]
 
-    for task in ALL_TASKS:
-        if task_filter and task.difficulty != task_filter:
-            continue
+    print("=" * 60, file=sys.stderr)
+    print("Supply Chain Ghost Protocol -- Baseline Inference", file=sys.stderr)
+    print(f"Model:     {MODEL_NAME}", file=sys.stderr)
+    print(f"Fallbacks: {', '.join(FALLBACK_MODELS)}", file=sys.stderr)
+    print(f"API:       {API_BASE_URL}", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
 
-        print(
-            f"[START] task={task.task_id} name={task.name!r} difficulty={task.difficulty} "
-            f"episode_length={task.episode_length} seed={SEED}",
-            flush=True,
-        )
-        print(f"\n[TASK] {task.name} ({task.difficulty.upper()}) -- {task.episode_length} days")
-        print(f"       {task.description[:120]}...")
+    if not tasks_to_run:
+        _struct_out("[START] task=_none")
+        _struct_out("[END] task=_none score=0.0 steps=0")
+        return results
+
+    for task in tasks_to_run:
+        # Match hackathon example: [START] task=NAME (task id is the stable NAME for parsers)
+        _struct_out(f"[START] task={task.task_id}")
+
+        print(f"\n[TASK] {task.name} ({task.difficulty.upper()}) -- {task.episode_length} days", file=sys.stderr)
+        print(f"       {task.description[:120]}...", file=sys.stderr)
 
         agent = make_llm_agent(task)
         result, trajectory = run_task(
@@ -335,31 +339,22 @@ def run_all_tasks(
         )
 
         for i, step in enumerate(trajectory, start=1):
-            print(
-                "[STEP] "
-                f"task={task.task_id} "
-                f"step={i} "
-                f"day={step.get('day')} "
-                f"action={step.get('action_type')} "
-                f"reward={step.get('reward_total')} "
-                f"service_level={step.get('service_level')} "
-                f"bullwhip_index={step.get('bullwhip_index')} "
-                f"stockout={step.get('any_factory_stockout')}",
-                flush=True,
+            r = step.get("reward_total")
+            r_str = f"{float(r):.6g}" if isinstance(r, (int, float)) else str(r)
+            _struct_out(
+                f"[STEP] task={task.task_id} step={i} reward={r_str}"
             )
 
         status = "PASS" if result.success else "FAIL"
-        print(f"\n{status} | Score: {result.score:.4f} (threshold: {task.success_threshold})")
-        print(f"Metrics: {json.dumps(result.metrics, indent=2)}")
+        print(f"\n{status} | Score: {result.score:.4f} (threshold: {task.success_threshold})", file=sys.stderr)
+        print(f"Metrics: {json.dumps(result.metrics, indent=2)}", file=sys.stderr)
         if result.failure_reasons:
-            print("Failure reasons:")
+            print("Failure reasons:", file=sys.stderr)
             for reason in result.failure_reasons:
-                print(f"  - {reason}")
+                print(f"  - {reason}", file=sys.stderr)
 
-        print(
-            f"[END] task={task.task_id} score={result.score:.4f} "
-            f"success={str(result.success).lower()} steps={len(trajectory)}",
-            flush=True,
+        _struct_out(
+            f"[END] task={task.task_id} score={result.score:.4f} steps={len(trajectory)}"
         )
 
         results[task.task_id] = {
@@ -374,18 +369,23 @@ def run_all_tasks(
         if not result.success:
             all_pass = False
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 60, file=sys.stderr)
     label = "ALL TASKS PASSED" if all_pass else "SOME TASKS FAILED"
-    print(f"OVERALL: {label}")
+    print(f"OVERALL: {label}", file=sys.stderr)
     scores = [r["score"] for r in results.values()]
     if scores:
-        print(f"Average score: {sum(scores) / len(scores):.4f}")
-    print("=" * 60)
+        print(f"Average score: {sum(scores) / len(scores):.4f}", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
 
     return results
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(
         description="Supply Chain Ghost Protocol -- Inference",
     )
@@ -402,4 +402,4 @@ if __name__ == "__main__":
 
     with open("baseline_scores.json", "w") as f:
         json.dump(results, f, indent=2)
-    print("\nResults written to baseline_scores.json")
+    print("\nResults written to baseline_scores.json", file=sys.stderr, flush=True)
